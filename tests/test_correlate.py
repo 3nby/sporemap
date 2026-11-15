@@ -164,3 +164,25 @@ def test_strip_port():
     assert _strip_port("ip:10.0.0.1:80") == "ip:10.0.0.1"
     assert _strip_port("ip:10.0.0.1") is None
     assert _strip_port("fqdn:a.b") is None
+
+
+def test_link_from_key_across_sources():
+    # proxmox knows the CT, caddy only knows "whatever has my ip runs me"
+    migrate()
+    pve = make_source("pve", lambda: Result([Obs("workload", "lxc/200", "caddy", {}, ["ip:192.168.1.70"])]))
+    cad = make_source("cad", lambda: Result([Obs("app", "app/caddy", "Caddy")],
+                                            [Link("runs", "ip:192.168.1.70", "app/caddy")]))
+    srcs = {"pve": pve, "cad": cad}
+    scan(srcs, "pve")
+    scan(srcs, "cad")
+    correlate()
+    assert snapshot()["edges"] == [["runs", "caddy", "Caddy"]]
+
+
+def test_unresolved_src_key_makes_placeholder():
+    migrate()
+    cad = make_source("cad", lambda: Result([Obs("app", "app/caddy", "Caddy")],
+                                            [Link("runs", "ip:10.9.9.9", "app/caddy")]))
+    scan({"cad": cad}, "cad")
+    correlate()
+    assert snapshot()["edges"] == [["runs", "ip:10.9.9.9", "Caddy"]]

@@ -20,7 +20,7 @@ class Obs:
 @dataclass
 class Link:
     kind: str  # one of EDGES
-    src: str  # ext_id of the from-obs
+    src: str  # ext_id, OR a key (like "ip:10.0.0.5" for "whatever has this ip runs me")
     dst: str  # ext_id, OR a correlation key the correlator resolves later
 
 
@@ -42,11 +42,13 @@ class Result:
         for ln in self.links:
             if ln.kind not in EDGES:
                 raise ValueError("bad edge kind: " + ln.kind)
-            if ln.src not in ids:
+            # either end can be a key, so only complain when it looks like neither
+            if ln.src not in ids and ":" not in ln.src:
                 raise ValueError("link from unknown ext_id: " + ln.src)
-            # dst can be a key, so only check it when it looks like neither
             if ln.dst not in ids and ":" not in ln.dst:
                 raise ValueError("link to unknown ext_id: " + ln.dst)
+            if ln.src not in ids and ln.dst not in ids:
+                raise ValueError("link needs at least one end in this result: " + ln.src + " -> " + ln.dst)
         return self
 
 

@@ -123,9 +123,7 @@ def correlate():
         scan_src = {o.scan_id: o.source for o in obs}
         want = {}
         for ln in links:
-            src = by_ext.get((ln.scan_id, ln.src))
-            if src is None:
-                continue  # Result.check() should make this impossible
+            src = resolve(ln.scan_id, ln.src)  # src can be a key too now
             dst = resolve(ln.scan_id, ln.dst)
             if src.id == dst.id:
                 continue  # self loops are noise

@@ -48,6 +48,7 @@ def test_duplicate_names_keep_first(monkeypatch):
     (Result([Obs("host", "a", "a"), Obs("host", "a", "b")]), "duplicate ext_id"),
     (Result([Obs("host", "a", "a")], [Link("likes", "a", "a")]), "bad edge kind"),
     (Result([Obs("host", "a", "a")], [Link("hosts", "zzz", "a")]), "unknown ext_id"),
+    (Result([Obs("host", "a", "a")], [Link("runs", "ip:1.2.3.4", "ip:5.6.7.8")]), "at least one end"),
     (Result([Obs("host", "a", "a")], [Link("hosts", "a", "nope")]), "unknown ext_id"),
 ])
 def test_result_check_catches_bugs(res, msg):
@@ -57,3 +58,7 @@ def test_result_check_catches_bugs(res, msg):
 
 def test_link_to_key_is_ok():
     Result([Obs("app", "a", "a")], [Link("routes_to", "a", "ip:10.0.0.5:80")]).check()
+
+
+def test_link_from_key_is_ok():
+    Result([Obs("app", "a", "a")], [Link("runs", "ip:10.0.0.5", "a")]).check()
