@@ -1,6 +1,7 @@
 from fastapi import APIRouter, FastAPI
 
 from sporemap import __version__
+from sporemap.settings import get_settings
 
 r = APIRouter(prefix="/api/v1")
 
@@ -12,6 +13,9 @@ def health():
 
 
 def create_app():
+    s = get_settings()
+    s.data_dir.mkdir(parents=True, exist_ok=True)  # db + keys will live here
+
     a = FastAPI(title="Sporemap", version=__version__)
     a.include_router(r)
     # print("app built")
