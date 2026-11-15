@@ -8,6 +8,7 @@
 sources:
   demo: {}
   # proxmox:
-  #   host: 192.168.1.10
+  #   host: 192.168.1.10          # or a tailscale ip
   #   token_id: sporemap@pve!scan
-  #   verify_ssl: false
+  #   verify_ssl: false           # true if your node has a real cert
+  #   # secret goes in .env as SPOREMAP_PROXMOX_TOKEN_SECRET

@@ -56,6 +56,30 @@ def sources_list():
         typer.echo(n + "  " + (d[0] if d else ""))
 
 
+@src_app.command("test")
+def sources_test(name: str):
+    """Check that a source's config can reach its system."""
+    import asyncio
+
+    from sporemap.sources import load_sources
+    from sporemap.sources.config import SourceConfigError, build_config
+
+    srcs = load_sources()
+    if name not in srcs:
+        typer.echo("no source named " + name, err=True)
+        raise typer.Exit(1)
+    try:
+        cfg = build_config(name, srcs[name])
+        asyncio.run(srcs[name]().test(cfg))
+    except SourceConfigError as e:
+        typer.echo(str(e), err=True)
+        raise typer.Exit(1) from e
+    except Exception as e:  # show whatever the source threw
+        typer.echo(name + ": FAILED " + type(e).__name__ + ": " + str(e), err=True)
+        raise typer.Exit(1) from e
+    typer.echo(name + ": ok")
+
+
 @app.command()
 def scan(source: str = typer.Argument(..., help="Source name, see: sporemap sources list")):
     """Run one source now and store what it finds."""

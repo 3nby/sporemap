@@ -19,12 +19,12 @@ dependencies = [
     "python-dotenv>=1",
     "sqlmodel>=0.0.50",
     "alembic>=1.13",
+    "httpx2>=2.16",
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest>=8",
-    "httpx2>=2.16",
     "ruff>=0.6",
 ]
 
@@ -33,6 +33,7 @@ sporemap = "sporemap.cli:app"
 
 [project.entry-points."sporemap.sources"]
 demo = "sporemap.sources.demo:Demo"
+proxmox = "sporemap.sources.proxmox:Proxmox"
 
 [project.urls]
 Homepage = "https://github.com/3nby/sporemap"

@@ -1,0 +1,28 @@
+{
+  "obs": [
+    ["host", "node/ghostprox", "ghostprox", ["ip:192.168.1.10", "pve:ghostprox/node/ghostprox"]],
+    ["network", "net/ghostprox/vmbr0", "vmbr0", ["pve:ghostprox/net/ghostprox/vmbr0"]],
+    ["network", "net/ghostprox/vmbr2", "vmbr2", ["pve:ghostprox/net/ghostprox/vmbr2"]],
+    ["storage", "storage/ghostprox/local", "local", []],
+    ["storage", "storage/ghostprox/local-lvm", "local-lvm", []],
+    ["workload", "lxc/200", "caddy", ["ip:192.168.1.70", "mac:bc:24:11:00:00:c8", "pve:ghostprox/200"]],
+    ["workload", "lxc/201", "foundry", ["ip:192.168.1.69", "mac:bc:24:11:00:00:c9", "pve:ghostprox/201"]],
+    ["workload", "lxc/202", "pubsite", ["ip:192.168.1.71", "mac:bc:24:11:00:00:ca", "pve:ghostprox/202"]],
+    ["workload", "qemu/300", "win-test", ["mac:bc:24:11:00:01:2c", "pve:ghostprox/300"]]
+  ],
+  "links": [
+    ["hosts", "node/ghostprox", "lxc/200"],
+    ["hosts", "node/ghostprox", "lxc/201"],
+    ["hosts", "node/ghostprox", "lxc/202"],
+    ["hosts", "node/ghostprox", "qemu/300"],
+    ["member_of", "lxc/200", "net/ghostprox/vmbr0"],
+    ["member_of", "lxc/201", "net/ghostprox/vmbr2"],
+    ["member_of", "lxc/202", "net/ghostprox/vmbr2"],
+    ["member_of", "node/ghostprox", "net/ghostprox/vmbr0"],
+    ["member_of", "qemu/300", "net/ghostprox/vmbr0"],
+    ["mounts", "lxc/200", "storage/ghostprox/local-lvm"],
+    ["mounts", "lxc/201", "storage/ghostprox/local-lvm"],
+    ["mounts", "lxc/202", "storage/ghostprox/local-lvm"],
+    ["mounts", "qemu/300", "storage/ghostprox/local-lvm"]
+  ]
+}
