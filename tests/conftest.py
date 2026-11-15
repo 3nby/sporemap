@@ -1,5 +1,6 @@
 import pytest
 
+from sporemap.db.engine import get_engine
 from sporemap.settings import get_settings
 
 
@@ -9,5 +10,8 @@ def _isolate(monkeypatch, tmp_path):
     monkeypatch.setenv("SPOREMAP_DATA_DIR", str(tmp_path / "data"))
     monkeypatch.setenv("SPOREMAP_CONFIG", str(tmp_path / "none.yaml"))
     get_settings.cache_clear()
+    get_engine.cache_clear()  # fresh db per test
     yield
+    get_engine().dispose()
+    get_engine.cache_clear()
     get_settings.cache_clear()
