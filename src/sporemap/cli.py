@@ -29,6 +29,20 @@ def config():
         typer.echo(k + ": " + str(v))
 
 
+src_app = typer.Typer(help="Discovery sources.", no_args_is_help=True)
+app.add_typer(src_app, name="sources")
+
+
+@src_app.command("list")
+def sources_list():
+    """List installed discovery sources."""
+    from sporemap.sources import load_sources
+
+    for n, cls in sorted(load_sources().items()):
+        d = (cls.__doc__ or "").strip().splitlines()
+        typer.echo(n + "  " + (d[0] if d else ""))
+
+
 @app.command()
 def version():
     """Print the version."""

@@ -30,5 +30,8 @@ dev = [
 [project.scripts]
 sporemap = "sporemap.cli:app"
 
+[project.entry-points."sporemap.sources"]
+demo = "sporemap.sources.demo:Demo"
+
 [project.urls]
 Homepage = "https://github.com/3nby/sporemap"
