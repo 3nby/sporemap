@@ -1,9 +1,10 @@
-"""First cross-source chain: proxmox knows the CTs, caddy knows the routes."""
+"""Cross-source chain: cloudflare knows dns, caddy knows routes, proxmox knows the CTs."""
 import asyncio
 import json
 from pathlib import Path
 
 import httpx2
+from test_cloudflare import fake_cf
 from test_correlate import snapshot
 from test_proxmox import fake_api
 
@@ -11,6 +12,7 @@ from sporemap.core.correlate import correlate
 from sporemap.core.scans import run_scan
 from sporemap.db import migrate
 from sporemap.sources.caddy import Caddy, CaddyConfig
+from sporemap.sources.cloudflare import Cloudflare, CloudflareConfig
 from sporemap.sources.proxmox import Proxmox, ProxmoxConfig
 
 FIX = Path(__file__).parent / "fixtures"
@@ -18,6 +20,10 @@ FIX = Path(__file__).parent / "fixtures"
 
 class FakePve(Proxmox):
     transport = fake_api("standalone.json")
+
+
+class FakeCf(Cloudflare):
+    transport = fake_cf()
 
 
 class FakeCaddy(Caddy):
@@ -39,3 +45,19 @@ def test_ghaw_net_reaches_pubsite():
     assert ["runs", "caddy", "Caddy"] in e  # caddy CT (from proxmox) runs the Caddy app
     assert ["routes_to", "Caddy", "pubsite"] in e  # 192.168.1.71:8080 resolved to the pubsite CT
     assert ["hosts", "ghostprox", "pubsite"] in e
+
+
+def test_cloudflare_and_caddy_agree_on_ghaw_net():
+    migrate()
+    srcs = {"proxmox": FakePve, "caddy": FakeCaddy, "cloudflare": FakeCf}
+    pc = ProxmoxConfig(host="pve.test", token_id="a@pve!b", token_secret="x", verify_ssl=False)
+    asyncio.run(run_scan("proxmox", cfg=pc, sources=srcs))
+    asyncio.run(run_scan("caddy", cfg=CaddyConfig(url="http://c.test", host_ip="192.168.1.70"), sources=srcs))
+    asyncio.run(run_scan("cloudflare", cfg=CloudflareConfig(api_token="t"), sources=srcs))
+    correlate()
+
+    g = snapshot()
+    assert g["nodes"].count(["endpoint", "ghaw.net"]) == 1  # dns record + caddy site merged by fqdn
+    assert ["routes_to", "ghaw.net", "foundry"] in g["edges"]  # into the tunnel
+    assert ["routes_to", "ghaw.net", "Caddy"] in g["edges"]  # and caddy serves it
+    assert ["routes_to", "factions.ghaw.net", "ghaw.net"] in g["edges"]

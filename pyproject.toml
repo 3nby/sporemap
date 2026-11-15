@@ -35,6 +35,7 @@ sporemap = "sporemap.cli:app"
 demo = "sporemap.sources.demo:Demo"
 proxmox = "sporemap.sources.proxmox:Proxmox"
 caddy = "sporemap.sources.caddy:Caddy"
+cloudflare = "sporemap.sources.cloudflare:Cloudflare"
 
 [project.urls]
 Homepage = "https://github.com/3nby/sporemap"

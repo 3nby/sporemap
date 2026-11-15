@@ -13,7 +13,7 @@ from sqlmodel import Session, func, select
 from sporemap.db import get_engine
 from sporemap.db.models import Edge, Node, Observation, RawLink, Scan, now
 
-STRONG = ("mac:", "pve:", "docker:", "machine:", "fqdn:")
+STRONG = ("mac:", "pve:", "docker:", "machine:", "fqdn:", "cftunnel:")
 
 
 class _UF:

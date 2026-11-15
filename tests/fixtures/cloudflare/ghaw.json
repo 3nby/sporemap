@@ -1,0 +1,24 @@
+{
+  "/zones": [
+    {"id": "zone-ghaw", "name": "ghaw.net", "account": {"id": "acct-1", "name": "Grant"}}
+  ],
+  "/accounts/acct-1/cfd_tunnel": [
+    {"id": "1e23e66b-97f2-4530-ad2b-6098e07a82d1", "name": "foundry", "status": "healthy", "remote_config": false,
+     "config_src": "local", "connections": [{"colo_name": "ewr01"}, {"colo_name": "iad03"}]},
+    {"id": "5c0ffee0-0000-4000-8000-00000000f11e", "name": "fileshare-tunnel", "status": "healthy",
+     "remote_config": false, "config_src": "local", "connections": [{"colo_name": "ewr01"}]}
+  ],
+  "/zones/zone-ghaw/dns_records": [
+    {"type": "CNAME", "name": "ghaw.net", "content": "1e23e66b-97f2-4530-ad2b-6098e07a82d1.cfargotunnel.com", "proxied": true},
+    {"type": "CNAME", "name": "foundry.ghaw.net", "content": "1e23e66b-97f2-4530-ad2b-6098e07a82d1.cfargotunnel.com", "proxied": true},
+    {"type": "CNAME", "name": "proxmox.ghaw.net", "content": "1e23e66b-97f2-4530-ad2b-6098e07a82d1.cfargotunnel.com", "proxied": true},
+    {"type": "CNAME", "name": "ssh.ghaw.net", "content": "1e23e66b-97f2-4530-ad2b-6098e07a82d1.cfargotunnel.com", "proxied": true},
+    {"type": "CNAME", "name": "fileshare.ghaw.net", "content": "5c0ffee0-0000-4000-8000-00000000f11e.cfargotunnel.com", "proxied": true},
+    {"type": "CNAME", "name": "factions.ghaw.net", "content": "ghaw.net", "proxied": true},
+    {"type": "CNAME", "name": "rumor.ghaw.net", "content": "ghaw.net", "proxied": true},
+    {"type": "MX", "name": "ghaw.net", "content": "mxa.mailgun.org", "priority": 10},
+    {"type": "MX", "name": "ghaw.net", "content": "mxb.mailgun.org", "priority": 10},
+    {"type": "TXT", "name": "ghaw.net", "content": "v=spf1 include:mailgun.org ~all"},
+    {"type": "TXT", "name": "pic._domainkey.ghaw.net", "content": "k=rsa; p=MIGf..."}
+  ]
+}
