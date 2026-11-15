@@ -3,6 +3,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
 from sporemap import __version__
+from sporemap.api import graph, scans
 from sporemap.db import get_engine, migrate
 from sporemap.settings import get_settings
 
@@ -27,5 +28,7 @@ def create_app():
 
     a = FastAPI(title="Sporemap", version=__version__)
     a.include_router(r)
+    a.include_router(graph.r, prefix="/api/v1", tags=["graph"])
+    a.include_router(scans.r, prefix="/api/v1", tags=["scans"])
     # print("app built")
     return a

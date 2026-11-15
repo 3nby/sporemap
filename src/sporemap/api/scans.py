@@ -1,0 +1,43 @@
+import asyncio
+
+from fastapi import APIRouter, HTTPException
+from sqlmodel import Session, select
+
+from sporemap.api.schemas import ScanIn, ScanOut
+from sporemap.core.correlate import correlate
+from sporemap.core.scans import run_scan
+from sporemap.db import get_engine
+from sporemap.db.models import Scan
+from sporemap.sources import load_sources
+
+r = APIRouter()
+_lock = asyncio.Lock()  # one scan at a time for now, the scheduler will get smarter
+
+
+@r.post("/scans", response_model=ScanOut, status_code=201)
+async def start_scan(body: ScanIn):
+    """Run a source now, then rebuild the graph. Waits until it finishes."""
+    srcs = load_sources()
+    if body.source not in srcs:
+        raise HTTPException(404, "no source named " + body.source)
+    async with _lock:
+        sc = await run_scan(body.source, sources=srcs)
+        if sc.status == "ok":
+            await asyncio.to_thread(correlate)  # sync db work, keep it off the event loop
+    return ScanOut(**sc.model_dump())
+
+
+@r.get("/scans", response_model=list[ScanOut])
+def list_scans(limit: int = 50):
+    with Session(get_engine()) as s:
+        rows = s.exec(select(Scan).order_by(Scan.id.desc()).limit(min(limit, 500))).all()
+    return [ScanOut(**x.model_dump()) for x in rows]
+
+
+@r.get("/scans/{sid}", response_model=ScanOut)
+def get_scan(sid: int):
+    with Session(get_engine()) as s:
+        x = s.get(Scan, sid)
+    if x is None:
+        raise HTTPException(404, "no scan " + str(sid))
+    return ScanOut(**x.model_dump())
