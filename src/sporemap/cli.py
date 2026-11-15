@@ -100,6 +100,8 @@ def scan(source: str = typer.Argument(..., help="Source name, see: sporemap sour
 
     from sporemap.sources.config import SourceConfigError, build_config
 
+    if source not in get_settings().sources:
+        typer.echo("warning: " + source + " isn't configured in sporemap.yaml, using defaults", err=True)
     try:
         cfg = build_config(source, srcs[source])
     except SourceConfigError as e:

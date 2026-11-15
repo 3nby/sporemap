@@ -79,3 +79,12 @@ def test_unknown_source_raises():
         asyncio.run(run_scan("nope", sources={}))
     with Session(get_engine()) as s:
         assert s.exec(select(Scan)).all() == []
+
+
+def test_cli_warns_when_source_not_configured():
+    from typer.testing import CliRunner
+
+    from sporemap.cli import app
+    r = CliRunner().invoke(app, ["scan", "demo"])
+    assert r.exit_code == 0
+    assert "isn't configured" in r.output
