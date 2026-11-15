@@ -12,3 +12,6 @@ sources:
   #   token_id: sporemap@pve!scan
   #   verify_ssl: false           # true if your node has a real cert
   #   # secret goes in .env as SPOREMAP_PROXMOX_TOKEN_SECRET
+  # caddy:
+  #   url: http://192.168.1.70:2020   # read-only proxy of the admin api, see docs
+  #   host_ip: 192.168.1.70           # the box caddy runs on

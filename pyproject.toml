@@ -34,6 +34,7 @@ sporemap = "sporemap.cli:app"
 [project.entry-points."sporemap.sources"]
 demo = "sporemap.sources.demo:Demo"
 proxmox = "sporemap.sources.proxmox:Proxmox"
+caddy = "sporemap.sources.caddy:Caddy"
 
 [project.urls]
 Homepage = "https://github.com/3nby/sporemap"

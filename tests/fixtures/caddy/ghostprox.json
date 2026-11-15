@@ -1,0 +1,101 @@
+{
+  "apps": {
+    "http": {
+      "servers": {
+        "srv0": {
+          "listen": [
+            ":2020"
+          ],
+          "routes": [
+            {
+              "handle": [
+                {
+                  "handler": "subroute",
+                  "routes": [
+                    {
+                      "handle": [
+                        {
+                          "handler": "reverse_proxy",
+                          "headers": {
+                            "request": {
+                              "set": {
+                                "Host": [
+                                  "localhost:2019"
+                                ]
+                              }
+                            }
+                          },
+                          "upstreams": [
+                            {
+                              "dial": "localhost:2019"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ],
+              "match": [
+                {
+                  "method": [
+                    "GET"
+                  ],
+                  "path": [
+                    "/config",
+                    "/config/*"
+                  ]
+                }
+              ]
+            },
+            {
+              "handle": [
+                {
+                  "handler": "static_response",
+                  "status_code": 403
+                }
+              ]
+            }
+          ]
+        },
+        "srv1": {
+          "listen": [
+            ":80"
+          ],
+          "routes": [
+            {
+              "handle": [
+                {
+                  "handler": "subroute",
+                  "routes": [
+                    {
+                      "handle": [
+                        {
+                          "handler": "reverse_proxy",
+                          "upstreams": [
+                            {
+                              "dial": "192.168.1.71:8080"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ],
+              "match": [
+                {
+                  "host": [
+                    "ghaw.net",
+                    "www.ghaw.net"
+                  ]
+                }
+              ],
+              "terminal": true
+            }
+          ]
+        }
+      }
+    }
+  }
+}
