@@ -38,6 +38,7 @@ class Observation(SQLModel, table=True):
     source: str
     ext_id: str  # stable id inside that source
     kind: str
+    name: str = Field(default="", sa_column_kwargs={"server_default": ""})
     attrs: dict = Field(default_factory=dict, sa_column=Column(JSON, nullable=False))
     keys: list = Field(default_factory=list, sa_column=Column(JSON, nullable=False))
     seen_at: datetime = Field(default_factory=now)
@@ -65,3 +66,14 @@ class Override(SQLModel, table=True):
     field: str
     value: dict = Field(default_factory=dict, sa_column=Column(JSON, nullable=False))
     created_at: datetime = Field(default_factory=now)
+
+
+class RawLink(SQLModel, table=True):
+    # a link exactly as a source reported it, before the correlator resolves it
+    __tablename__ = "raw_link"
+
+    id: int | None = Field(default=None, primary_key=True)
+    scan_id: int = Field(foreign_key="scan.id", index=True)
+    kind: str
+    src: str  # ext_id inside the same scan
+    dst: str  # ext_id or a correlation key like "ip:10.0.0.5:80"

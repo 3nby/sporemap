@@ -44,6 +44,35 @@ def sources_list():
 
 
 @app.command()
+def scan(source: str = typer.Argument(..., help="Source name, see: sporemap sources list")):
+    """Run one source now and store what it finds."""
+    import asyncio
+
+    from sqlmodel import Session, func, select
+
+    from sporemap.core.scans import run_scan
+    from sporemap.db import get_engine, migrate
+    from sporemap.db.models import Observation, RawLink
+    from sporemap.sources import load_sources
+
+    srcs = load_sources()
+    if source not in srcs:
+        typer.echo("no source named " + source + ". installed: " + ", ".join(sorted(srcs)), err=True)
+        raise typer.Exit(1)
+
+    migrate()
+    sc = asyncio.run(run_scan(source, sources=srcs))
+    if sc.status != "ok":
+        typer.echo("scan " + str(sc.id) + " failed: " + str(sc.error), err=True)
+        raise typer.Exit(1)
+
+    with Session(get_engine()) as s:
+        no = s.exec(select(func.count()).select_from(Observation).where(Observation.scan_id == sc.id)).one()
+        nl = s.exec(select(func.count()).select_from(RawLink).where(RawLink.scan_id == sc.id)).one()
+    typer.echo("scan " + str(sc.id) + " ok: " + str(no) + " observations, " + str(nl) + " links")
+
+
+@app.command()
 def version():
     """Print the version."""
     typer.echo("sporemap " + __version__)

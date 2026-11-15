@@ -25,6 +25,7 @@ class Settings(BaseSettings):
     host: str = "127.0.0.1"  # localhost by default, on purpose
     port: int = 8420
     log_level: str = "info"
+    scan_timeout: float = 120  # seconds per source run
 
     @classmethod
     def settings_customise_sources(cls, settings_cls, init_settings, env_settings, dotenv_settings, file_secret_settings):
