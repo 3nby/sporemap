@@ -10,6 +10,21 @@ readme = "README.md"
 license = "AGPL-3.0-only"
 requires-python = ">=3.11"
 authors = [{ name = "Grant" }]
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "typer>=0.12",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8",
+    "httpx2>=2.16",
+    "ruff>=0.6",
+]
+
+[project.scripts]
+sporemap = "sporemap.cli:app"
 
 [project.urls]
 Homepage = "https://github.com/3nby/sporemap"
