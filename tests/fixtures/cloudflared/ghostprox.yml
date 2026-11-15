@@ -1,0 +1,21 @@
+tunnel: 1e23e66b-97f2-4530-ad2b-6098e07a82d1
+credentials-file: /etc/cloudflared/1e23e66b-97f2-4530-ad2b-6098e07a82d1.json
+
+ingress:
+  - hostname: foundry.ghaw.net
+    service: http://192.168.1.69:30000
+  - hostname: proxmox.ghaw.net
+    service: https://localhost:8006
+    originRequest:
+      noTLSVerify: true
+  - hostname: ssh.ghaw.net
+    service: ssh://localhost:22
+  - hostname: ghaw.net
+    service: http://192.168.1.70:80
+  - hostname: www.ghaw.net
+    service: http://192.168.1.70:80
+  - hostname: fileshare.ghaw.net
+    service: http://192.168.1.10:8080
+  - hostname: drop.ghaw.net
+    service: http://192.168.1.10:8081
+  - service: http_status:404

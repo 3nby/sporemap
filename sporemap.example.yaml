@@ -19,3 +19,7 @@ sources:
   #   zones: [example.com]            # optional, default is every zone the token sees
   #   # token goes in .env as SPOREMAP_CLOUDFLARE_API_TOKEN
   #   # needs: Zone:Zone:Read, Zone:DNS:Read, Account:Cloudflare Tunnel:Read
+  # cloudflared:                      # locally managed tunnel, read over ssh
+  #   host: 192.168.1.10
+  #   key_path: ~/.ssh/sporemap       # key with a forced "cat config.yml" command, see docs
+  #   host_ip: 192.168.1.10           # lan ip of that box, for localhost services

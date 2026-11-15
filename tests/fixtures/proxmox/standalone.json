@@ -1,28 +1,184 @@
 {
-  "/version": {"version": "9.2.1", "release": "9.2"},
+  "/version": {
+    "version": "9.2.1",
+    "release": "9.2"
+  },
   "/cluster/status": [
-    {"type": "node", "name": "ghostprox", "id": "node/ghostprox", "ip": "192.168.1.10", "online": 1, "local": 1}
+    {
+      "type": "node",
+      "name": "ghostprox",
+      "id": "node/ghostprox",
+      "ip": "10.17.48.106",
+      "online": 1,
+      "local": 1
+    }
   ],
   "/cluster/resources": [
-    {"type": "node", "id": "node/ghostprox", "node": "ghostprox", "status": "online", "maxcpu": 8, "maxmem": 33554432000},
-    {"type": "storage", "id": "storage/ghostprox/local", "node": "ghostprox", "storage": "local", "plugintype": "dir", "content": "iso,vztmpl,backup", "shared": 0, "maxdisk": 100000000000, "status": "available"},
-    {"type": "storage", "id": "storage/ghostprox/local-lvm", "node": "ghostprox", "storage": "local-lvm", "plugintype": "lvmthin", "content": "images,rootdir", "shared": 0, "maxdisk": 400000000000, "status": "available"},
-    {"type": "lxc", "id": "lxc/200", "vmid": 200, "name": "caddy", "node": "ghostprox", "status": "running", "maxcpu": 1, "maxmem": 536870912, "maxdisk": 8589934592, "template": 0},
-    {"type": "lxc", "id": "lxc/201", "vmid": 201, "name": "foundry", "node": "ghostprox", "status": "running", "maxcpu": 2, "maxmem": 4294967296, "maxdisk": 21474836480, "template": 0},
-    {"type": "lxc", "id": "lxc/202", "vmid": 202, "name": "pubsite", "node": "ghostprox", "status": "running", "maxcpu": 1, "maxmem": 2147483648, "maxdisk": 4294967296, "template": 0},
-    {"type": "qemu", "id": "qemu/300", "vmid": 300, "name": "win-test", "node": "ghostprox", "status": "stopped", "maxcpu": 4, "maxmem": 8589934592, "maxdisk": 68719476736, "template": 0},
-    {"type": "qemu", "id": "qemu/9000", "vmid": 9000, "name": "debian-tmpl", "node": "ghostprox", "status": "stopped", "template": 1}
+    {
+      "type": "node",
+      "id": "node/ghostprox",
+      "node": "ghostprox",
+      "status": "online",
+      "maxcpu": 4,
+      "maxmem": 33554432000
+    },
+    {
+      "type": "storage",
+      "id": "storage/ghostprox/local",
+      "node": "ghostprox",
+      "storage": "local",
+      "plugintype": "dir",
+      "content": "iso,vztmpl,backup",
+      "shared": 0,
+      "maxdisk": 100000000000,
+      "status": "available"
+    },
+    {
+      "type": "storage",
+      "id": "storage/ghostprox/local-lvm",
+      "node": "ghostprox",
+      "storage": "local-lvm",
+      "plugintype": "lvmthin",
+      "content": "images,rootdir",
+      "shared": 0,
+      "maxdisk": 400000000000,
+      "status": "available"
+    },
+    {
+      "type": "lxc",
+      "id": "lxc/200",
+      "vmid": 200,
+      "name": "caddy",
+      "node": "ghostprox",
+      "status": "running",
+      "maxcpu": 1,
+      "maxmem": 536870912,
+      "maxdisk": 8589934592,
+      "template": 0
+    },
+    {
+      "type": "lxc",
+      "id": "lxc/201",
+      "vmid": 201,
+      "name": "foundry",
+      "node": "ghostprox",
+      "status": "running",
+      "maxcpu": 2,
+      "maxmem": 4294967296,
+      "maxdisk": 21474836480,
+      "template": 0
+    },
+    {
+      "type": "lxc",
+      "id": "lxc/202",
+      "vmid": 202,
+      "name": "pubsite",
+      "node": "ghostprox",
+      "status": "running",
+      "maxcpu": 1,
+      "maxmem": 2147483648,
+      "maxdisk": 4294967296,
+      "template": 0
+    },
+    {
+      "type": "qemu",
+      "id": "qemu/300",
+      "vmid": 300,
+      "name": "win-test",
+      "node": "ghostprox",
+      "status": "stopped",
+      "maxcpu": 4,
+      "maxmem": 8589934592,
+      "maxdisk": 68719476736,
+      "template": 0
+    },
+    {
+      "type": "qemu",
+      "id": "qemu/9000",
+      "vmid": 9000,
+      "name": "debian-tmpl",
+      "node": "ghostprox",
+      "status": "stopped",
+      "template": 1
+    }
   ],
   "/nodes/ghostprox/network": [
-    {"iface": "enp3s0", "type": "eth", "active": 1},
-    {"iface": "vmbr0", "type": "bridge", "address": "192.168.1.10", "cidr": "192.168.1.10/24", "bridge_ports": "enp3s0", "active": 1},
-    {"iface": "vmbr2", "type": "bridge", "bridge_ports": "", "active": 1}
+    {
+      "iface": "nic0",
+      "type": "eth",
+      "active": 1
+    },
+    {
+      "iface": "vmbr0",
+      "type": "bridge",
+      "address": "10.17.48.106",
+      "cidr": "10.17.48.106/23",
+      "bridge_ports": "nic0",
+      "active": 1
+    },
+    {
+      "iface": "vmbr2",
+      "type": "bridge",
+      "address": "192.168.1.1",
+      "cidr": "192.168.1.1/24",
+      "bridge_ports": "",
+      "active": 1
+    }
   ],
-  "/nodes/ghostprox/lxc/200/config": {"hostname": "caddy", "net0": "name=eth0,bridge=vmbr0,hwaddr=BC:24:11:00:00:C8,ip=192.168.1.70/24,gw=192.168.1.1,type=veth", "rootfs": "local-lvm:vm-200-disk-0,size=8G"},
-  "/nodes/ghostprox/lxc/201/config": {"hostname": "foundry", "net0": "name=eth0,bridge=vmbr2,hwaddr=BC:24:11:00:00:C9,ip=192.168.1.69/24,gw=192.168.1.1,type=veth", "rootfs": "local-lvm:vm-201-disk-0,size=20G", "mp0": "/mnt/backups,mp=/backups"},
-  "/nodes/ghostprox/lxc/202/config": {"hostname": "pubsite", "net0": "name=eth0,bridge=vmbr2,hwaddr=BC:24:11:00:00:CA,ip=dhcp,type=veth", "rootfs": "local-lvm:vm-202-disk-0,size=4G"},
-  "/nodes/ghostprox/qemu/300/config": {"name": "win-test", "agent": "enabled=1", "net0": "virtio=BC:24:11:00:01:2C,bridge=vmbr0,firewall=1", "scsi0": "local-lvm:vm-300-disk-0,size=64G", "ide2": "local:iso/win.iso,media=cdrom"},
-  "/nodes/ghostprox/lxc/200/interfaces": [{"name": "lo", "inet": "127.0.0.1/8"}, {"name": "eth0", "hwaddr": "bc:24:11:00:00:c8", "inet": "192.168.1.70/24"}],
-  "/nodes/ghostprox/lxc/201/interfaces": [{"name": "lo", "inet": "127.0.0.1/8"}, {"name": "eth0", "hwaddr": "bc:24:11:00:00:c9", "inet": "192.168.1.69/24"}],
-  "/nodes/ghostprox/lxc/202/interfaces": [{"name": "lo", "inet": "127.0.0.1/8"}, {"name": "eth0", "hwaddr": "bc:24:11:00:00:ca", "inet": "192.168.1.71/24"}]
+  "/nodes/ghostprox/lxc/200/config": {
+    "hostname": "caddy",
+    "net0": "name=eth0,bridge=vmbr2,hwaddr=BC:24:11:00:00:C8,ip=192.168.1.70/24,gw=192.168.1.1,type=veth",
+    "rootfs": "local-lvm:vm-200-disk-0,size=8G"
+  },
+  "/nodes/ghostprox/lxc/201/config": {
+    "hostname": "foundry",
+    "net0": "name=eth0,bridge=vmbr2,hwaddr=BC:24:11:00:00:C9,ip=192.168.1.69/24,gw=192.168.1.1,type=veth",
+    "rootfs": "local-lvm:vm-201-disk-0,size=20G",
+    "mp0": "/mnt/backups,mp=/backups"
+  },
+  "/nodes/ghostprox/lxc/202/config": {
+    "hostname": "pubsite",
+    "net0": "name=eth0,bridge=vmbr2,hwaddr=BC:24:11:00:00:CA,ip=dhcp,type=veth",
+    "rootfs": "local-lvm:vm-202-disk-0,size=4G"
+  },
+  "/nodes/ghostprox/qemu/300/config": {
+    "name": "win-test",
+    "agent": "enabled=1",
+    "net0": "virtio=BC:24:11:00:01:2C,bridge=vmbr0,firewall=1",
+    "scsi0": "local-lvm:vm-300-disk-0,size=64G",
+    "ide2": "local:iso/win.iso,media=cdrom"
+  },
+  "/nodes/ghostprox/lxc/200/interfaces": [
+    {
+      "name": "lo",
+      "inet": "127.0.0.1/8"
+    },
+    {
+      "name": "eth0",
+      "hwaddr": "bc:24:11:00:00:c8",
+      "inet": "192.168.1.70/24"
+    }
+  ],
+  "/nodes/ghostprox/lxc/201/interfaces": [
+    {
+      "name": "lo",
+      "inet": "127.0.0.1/8"
+    },
+    {
+      "name": "eth0",
+      "hwaddr": "bc:24:11:00:00:c9",
+      "inet": "192.168.1.69/24"
+    }
+  ],
+  "/nodes/ghostprox/lxc/202/interfaces": [
+    {
+      "name": "lo",
+      "inet": "127.0.0.1/8"
+    },
+    {
+      "name": "eth0",
+      "hwaddr": "bc:24:11:00:00:ca",
+      "inet": "192.168.1.71/24"
+    }
+  ]
 }
