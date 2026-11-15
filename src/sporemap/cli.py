@@ -50,6 +50,7 @@ def scan(source: str = typer.Argument(..., help="Source name, see: sporemap sour
 
     from sqlmodel import Session, func, select
 
+    from sporemap.core.correlate import correlate
     from sporemap.core.scans import run_scan
     from sporemap.db import get_engine, migrate
     from sporemap.db.models import Observation, RawLink
@@ -70,6 +71,8 @@ def scan(source: str = typer.Argument(..., help="Source name, see: sporemap sour
         no = s.exec(select(func.count()).select_from(Observation).where(Observation.scan_id == sc.id)).one()
         nl = s.exec(select(func.count()).select_from(RawLink).where(RawLink.scan_id == sc.id)).one()
     typer.echo("scan " + str(sc.id) + " ok: " + str(no) + " observations, " + str(nl) + " links")
+    g = correlate()
+    typer.echo("graph: " + str(g["nodes"]) + " nodes, " + str(g["edges"]) + " edges")
 
 
 @app.command()

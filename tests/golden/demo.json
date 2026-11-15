@@ -1,0 +1,21 @@
+{
+  "nodes": [
+    ["app", "Caddy"],
+    ["app", "Website"],
+    ["endpoint", "example.lan"],
+    ["host", "pve1"],
+    ["network", "vmbr0"],
+    ["workload", "proxy"],
+    ["workload", "web"]
+  ],
+  "edges": [
+    ["hosts", "pve1", "proxy"],
+    ["hosts", "pve1", "web"],
+    ["member_of", "proxy", "vmbr0"],
+    ["member_of", "web", "vmbr0"],
+    ["routes_to", "Caddy", "Website"],
+    ["routes_to", "example.lan", "Caddy"],
+    ["runs", "proxy", "Caddy"],
+    ["runs", "web", "Website"]
+  ]
+}
