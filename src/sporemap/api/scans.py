@@ -9,6 +9,7 @@ from sporemap.core.scans import run_scan
 from sporemap.db import get_engine
 from sporemap.db.models import Scan
 from sporemap.sources import load_sources
+from sporemap.sources.config import SourceConfigError, build_config
 
 r = APIRouter()
 _lock = asyncio.Lock()  # one scan at a time for now, the scheduler will get smarter
@@ -20,8 +21,12 @@ async def start_scan(body: ScanIn):
     srcs = load_sources()
     if body.source not in srcs:
         raise HTTPException(404, "no source named " + body.source)
+    try:
+        cfg = build_config(body.source, srcs[body.source])
+    except SourceConfigError as e:
+        raise HTTPException(400, str(e)) from e
     async with _lock:
-        sc = await run_scan(body.source, sources=srcs)
+        sc = await run_scan(body.source, cfg=cfg, sources=srcs)
         if sc.status == "ok":
             await asyncio.to_thread(correlate)  # sync db work, keep it off the event loop
     return ScanOut(**sc.model_dump())

@@ -19,19 +19,20 @@ def _cfg_path():
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="SPOREMAP_", extra="ignore")
+    model_config = SettingsConfigDict(env_prefix="SPOREMAP_", env_file=".env", extra="ignore")
 
     data_dir: Path = Path(user_data_dir("sporemap", appauthor=False))
     host: str = "127.0.0.1"  # localhost by default, on purpose
     port: int = 8420
     log_level: str = "info"
     scan_timeout: float = 120  # seconds per source run
+    sources: dict[str, dict] = {}  # per-source settings from sporemap.yaml, NO secrets in here
 
     @classmethod
     def settings_customise_sources(cls, settings_cls, init_settings, env_settings, dotenv_settings, file_secret_settings):
-        # order = priority: explicit args > env vars > yaml file > defaults
+        # order = priority: explicit args > env vars > .env file > yaml file > defaults
         y = YamlConfigSettingsSource(settings_cls, yaml_file=_cfg_path())
-        return (init_settings, env_settings, y)
+        return (init_settings, env_settings, dotenv_settings, y)
 
 
 @lru_cache

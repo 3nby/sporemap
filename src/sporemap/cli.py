@@ -24,9 +24,22 @@ def serve(host: str = typer.Option(None, help="Defaults to the configured host."
 @app.command()
 def config():
     """Show the settings Sporemap will use."""
+    from sporemap.sources import load_sources
+    from sporemap.sources.config import SourceConfigError, redacted
+
     s = get_settings()
     for k, v in s.model_dump().items():
-        typer.echo(k + ": " + str(v))
+        if k != "sources":
+            typer.echo(k + ": " + str(v))
+    srcs = load_sources()
+    for n in sorted(s.sources):
+        if n not in srcs:
+            typer.echo("source " + n + ": not installed")
+            continue
+        try:
+            typer.echo("source " + n + ": " + str(redacted(n, srcs[n])))
+        except SourceConfigError as e:
+            typer.echo("source " + n + ": ERROR " + str(e))
 
 
 src_app = typer.Typer(help="Discovery sources.", no_args_is_help=True)
@@ -61,8 +74,16 @@ def scan(source: str = typer.Argument(..., help="Source name, see: sporemap sour
         typer.echo("no source named " + source + ". installed: " + ", ".join(sorted(srcs)), err=True)
         raise typer.Exit(1)
 
+    from sporemap.sources.config import SourceConfigError, build_config
+
+    try:
+        cfg = build_config(source, srcs[source])
+    except SourceConfigError as e:
+        typer.echo(str(e), err=True)
+        raise typer.Exit(1) from e
+
     migrate()
-    sc = asyncio.run(run_scan(source, sources=srcs))
+    sc = asyncio.run(run_scan(source, cfg=cfg, sources=srcs))
     if sc.status != "ok":
         typer.echo("scan " + str(sc.id) + " failed: " + str(sc.error), err=True)
         raise typer.Exit(1)

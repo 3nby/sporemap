@@ -9,6 +9,7 @@ def _isolate(monkeypatch, tmp_path):
     # keep tests out of the real data dir + away from any local sporemap.yaml
     monkeypatch.setenv("SPOREMAP_DATA_DIR", str(tmp_path / "data"))
     monkeypatch.setenv("SPOREMAP_CONFIG", str(tmp_path / "none.yaml"))
+    monkeypatch.chdir(tmp_path)  # so a real .env in the repo never leaks into tests
     get_settings.cache_clear()
     get_engine.cache_clear()  # fresh db per test
     yield

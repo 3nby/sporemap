@@ -7,6 +7,7 @@ from sporemap.db import get_engine
 from sporemap.db.models import Observation, RawLink, Scan, now
 from sporemap.settings import get_settings
 from sporemap.sources import load_sources
+from sporemap.sources.config import build_config
 
 log = logging.getLogger(__name__)
 
@@ -15,12 +16,13 @@ async def run_scan(name, cfg=None, sources=None):
     """Run one source once and store what it saw. Returns the finished Scan row.
 
     A source blowing up never raises out of here, it just marks the scan failed.
-    Only an unknown source name raises (KeyError), bc thats a caller bug.
+    Raises KeyError for an unknown source and SourceConfigError for bad config,
+    bc those are setup problems, not scan problems.
     """
     srcs = sources if sources is not None else load_sources()
     cls = srcs[name]
     src = cls()
-    c = cls.Config(**(cfg or {}))
+    c = cfg if cfg is not None else build_config(name, cls)
 
     eng = get_engine()
     with Session(eng) as s:

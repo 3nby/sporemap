@@ -1,0 +1,13 @@
+# copy to sporemap.yaml (or point SPOREMAP_CONFIG at it)
+# secrets do NOT go here, put them in env vars or .env
+
+# host: 127.0.0.1
+# port: 8420
+# scan_timeout: 120
+
+sources:
+  demo: {}
+  # proxmox:
+  #   host: 192.168.1.10
+  #   token_id: sporemap@pve!scan
+  #   verify_ssl: false

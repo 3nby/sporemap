@@ -4,3 +4,6 @@ build/
 __pycache__/
 .venv/
 sporemap.yaml.env
+
+.env
+sporemap.yaml
