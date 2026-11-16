@@ -30,6 +30,17 @@ def fake_docker(name="fileshare.json", overrides=None, seen=None):
     return httpx2.MockTransport(handler)
 
 
+# fileshare has no stopped containers right now, so tests that need one add this
+OLD = {"Id": "f" * 64, "Names": ["/old-thing"], "Image": "example/old:1", "State": "exited",
+       "Status": "Exited (0) 2 weeks ago", "Ports": [{"PrivatePort": 9000, "Type": "tcp"}], "Labels": {},
+       "NetworkSettings": {"Networks": {}}}
+
+
+def with_old():
+    real = json.loads((FIX / "fileshare.json").read_text())["/containers/json"]
+    return {"/containers/json": [*real, OLD]}
+
+
 def run(include_stopped=True, **kw):
     d = Docker()
     d.transport = fake_docker(**{k: kw.pop(k) for k in ("overrides", "seen") if k in kw})
@@ -44,14 +55,15 @@ def by_name(res):
 def test_fileshare_containers():
     res = run(host_ip="192.168.1.10")
     c = by_name(res)
-    assert sorted(c) == ["dockerproxy", "drop", "files-web", "old-thing"]
-    web = c["files-web"]
-    assert web.kind == "container" and web.attrs["compose_project"] == "files"
+    assert sorted(c) == ["dockerproxy", "filebrowser", "transfer-transfer-1"]  # real output from fileshare
+    web = c["filebrowser"]
+    assert web.kind == "container" and web.attrs["compose_project"] == "filebrowser"
     assert web.attrs["ports"] == [{"bind": "0.0.0.0", "host_port": 8080, "port": 80, "proto": "tcp"}]  # v6 dupe gone
     assert "ip:192.168.1.10:8080" in web.keys
-    assert "ip:192.168.1.10:8081" in c["drop"].keys
-    assert any(k.startswith("docker:ENG-FILESHARE-0001/") for k in web.keys)
-    assert sorted((ln.kind, ln.src) for ln in res.links) == [("hosts", "ip:192.168.1.10")] * 4
+    drop = c["transfer-transfer-1"]
+    assert "ip:192.168.1.10:8081" in drop.keys and drop.attrs["ports"][0]["port"] == 8080
+    assert any(k.startswith("docker:669fa497-5a1f-4b36-8d3b-16c9121a1f55/") for k in web.keys)
+    assert sorted((ln.kind, ln.src) for ln in res.links) == [("hosts", "ip:192.168.1.10")] * 3
     assert res.warnings == []
 
 
@@ -62,11 +74,12 @@ def test_loopback_binds_get_no_ip_key():
 
 
 def test_unpublished_ports_ignored():
-    assert by_name(run(host_ip="10.0.0.1"))["old-thing"].attrs["ports"] == []
+    assert by_name(run(host_ip="10.0.0.1", overrides=with_old()))["old-thing"].attrs["ports"] == []
 
 
 def test_running_only():
-    assert "old-thing" not in by_name(run(host_ip="10.0.0.1", include_stopped=False))
+    assert "old-thing" in by_name(run(host_ip="10.0.0.1", overrides=with_old()))
+    assert "old-thing" not in by_name(run(host_ip="10.0.0.1", include_stopped=False, overrides=with_old()))
 
 
 def test_host_ip_from_url():
@@ -96,7 +109,7 @@ def test_one_dead_host_is_a_warning():
     cfg = DockerConfig(hosts=[DockerHost(name="good", url="http://good.test", host_ip="10.0.0.1"),
                               DockerHost(name="bad", url="http://dead.test", host_ip="10.0.0.2")])
     res = asyncio.run(d.discover(cfg))
-    assert len(res.obs) == 4
+    assert len(res.obs) == 3
     assert any(w.startswith("bad: ConnectError") for w in res.warnings)
     assert {o.attrs["docker_host"] for o in res.obs} == {"good"}
 
@@ -165,7 +178,7 @@ def test_ssh_tunnel_direct(monkeypatch):
     assert {(r.url.host, r.url.port) for r in seen} == {("127.0.0.1", 40123)}  # went through the forward
     assert c.lis.closed and log[-1] == ("close", "10.17.48.126")
     # host_ip comes from the ssh host, so containers still land on the right box
-    assert "ip:10.17.48.126:8080" in by_name(res)["files-web"].keys
+    assert "ip:10.17.48.126:8080" in by_name(res)["filebrowser"].keys
     assert res.warnings == []
 
 
@@ -178,7 +191,7 @@ def test_ssh_tunnel_through_jump(monkeypatch):
     assert c.kw["username"] == "sporemap"
     # inner closes before the jump
     assert [e for e in log if e[0] == "close"] == [("close", "192.168.1.10"), ("close", "100.87.242.14")]
-    assert len(res.obs) == 4
+    assert len(res.obs) == 3
 
 
 def test_ssh_custom_remote_port_and_per_host_key(monkeypatch):

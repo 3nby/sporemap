@@ -1,22 +1,8 @@
 {
-  "/info": {"ID": "ENG-FILESHARE-0001", "Name": "fileshare", "ServerVersion": "28.5.1", "Containers": 4},
+  "/info": {"ID": "669fa497-5a1f-4b36-8d3b-16c9121a1f55", "Name": "fileshare", "ServerVersion": "29.9.3", "Containers": 3},
   "/containers/json": [
-    {"Id": "a1b2c3d4e5f60000000000000000000000000000000000000000000000000001", "Names": ["/files-web"],
-     "Image": "example/files:latest", "State": "running", "Status": "Up 3 days",
-     "Ports": [{"IP": "0.0.0.0", "PrivatePort": 80, "PublicPort": 8080, "Type": "tcp"},
-               {"IP": "::", "PrivatePort": 80, "PublicPort": 8080, "Type": "tcp"}],
-     "Labels": {"com.docker.compose.project": "files", "com.docker.compose.service": "web"},
-     "NetworkSettings": {"Networks": {"files_default": {}}}},
-    {"Id": "a1b2c3d4e5f60000000000000000000000000000000000000000000000000002", "Names": ["/drop"],
-     "Image": "example/drop:2", "State": "running", "Status": "Up 3 days",
-     "Ports": [{"IP": "0.0.0.0", "PrivatePort": 3000, "PublicPort": 8081, "Type": "tcp"}],
-     "Labels": {}, "NetworkSettings": {"Networks": {"bridge": {}}}},
-    {"Id": "a1b2c3d4e5f60000000000000000000000000000000000000000000000000003", "Names": ["/dockerproxy"],
-     "Image": "tecnativa/docker-socket-proxy", "State": "running", "Status": "Up 1 hour",
-     "Ports": [{"IP": "127.0.0.1", "PrivatePort": 2375, "PublicPort": 2375, "Type": "tcp"}],
-     "Labels": {}, "NetworkSettings": {"Networks": {"bridge": {}}}},
-    {"Id": "a1b2c3d4e5f60000000000000000000000000000000000000000000000000004", "Names": ["/old-thing"],
-     "Image": "example/old:1", "State": "exited", "Status": "Exited (0) 2 weeks ago",
-     "Ports": [{"PrivatePort": 9000, "Type": "tcp"}], "Labels": {}, "NetworkSettings": {"Networks": {}}}
+    {"Id": "cd071f497278bd902d5c62127b21f9ed2eb8a8f2b90f80b43a71aff2317d3097", "Names": ["/dockerproxy"], "Image": "tecnativa/docker-socket-proxy", "State": "running", "Status": "Up 10 minutes", "Ports": [{"IP": "127.0.0.1", "PrivatePort": 2375, "PublicPort": 2375, "Type": "tcp"}], "Labels": {}, "NetworkSettings": {"Networks": {"bridge": {}}}},
+    {"Id": "d33daa4f45fc4c09bd8418bb58af35270d1da4182516e61abf47117a83dfefeb", "Names": ["/transfer-transfer-1"], "Image": "dutchcoders/transfer.sh:latest", "State": "running", "Status": "Up 3 days", "Ports": [{"IP": "0.0.0.0", "PrivatePort": 8080, "PublicPort": 8081, "Type": "tcp"}, {"IP": "::", "PrivatePort": 8080, "PublicPort": 8081, "Type": "tcp"}], "Labels": {"com.docker.compose.project": "transfer", "com.docker.compose.service": "transfer"}, "NetworkSettings": {"Networks": {"transfer_default": {}}}},
+    {"Id": "7aa46a1b467757da3a1ef421f493ab72e9918cf7429c2883a18e0c88cf4f04a5", "Names": ["/filebrowser"], "Image": "ghcr.io/gtsteffaniak/filebrowser:stable", "State": "running", "Status": "Up 4 days (healthy)", "Ports": [{"IP": "0.0.0.0", "PrivatePort": 80, "PublicPort": 8080, "Type": "tcp"}, {"IP": "::", "PrivatePort": 80, "PublicPort": 8080, "Type": "tcp"}], "Labels": {"com.docker.compose.project": "filebrowser", "com.docker.compose.service": "filebrowser"}, "NetworkSettings": {"Networks": {"filebrowser_default": {}}}}
   ]
 }

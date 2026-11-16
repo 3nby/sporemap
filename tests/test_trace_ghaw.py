@@ -7,6 +7,7 @@ import httpx2
 from sqlmodel import Session, select
 from test_cloudflare import fake_cf
 from test_correlate import snapshot
+from test_docker import fake_docker
 from test_proxmox import fake_api
 
 from sporemap.core.correlate import correlate
@@ -16,6 +17,7 @@ from sporemap.db.models import Edge, Node
 from sporemap.sources.caddy import Caddy, CaddyConfig
 from sporemap.sources.cloudflare import Cloudflare, CloudflareConfig
 from sporemap.sources.cloudflared import Cloudflared, CloudflaredConfig
+from sporemap.sources.docker import Docker, DockerConfig, DockerHost
 from sporemap.sources.proxmox import Proxmox, ProxmoxConfig
 
 FIX = Path(__file__).parent / "fixtures"
@@ -32,6 +34,10 @@ class FakeCf(Cloudflare):
 class FakeCfd(Cloudflared):
     async def _fetch(self, cfg):
         return (FIX / "cloudflared" / "ghostprox.yml").read_text()
+
+
+class FakeDocker(Docker):
+    transport = fake_docker()
 
 
 class FakeCaddy(Caddy):
@@ -96,3 +102,15 @@ def test_full_trace_internet_to_app():
         kinds = {(n[x.src_id].kind, n[x.dst_id].kind, n[x.dst_id].name) for x in s.exec(select(Edge)).all()}
     assert ("external", "workload", "foundry") in kinds
     assert ["runs", "ghostprox", "foundry"] in e
+
+
+def test_tunnel_port_lands_on_the_exact_container():
+    migrate()
+    srcs = {"cloudflared": FakeCfd, "docker": FakeDocker}
+    asyncio.run(run_scan("cloudflared", cfg=CloudflaredConfig(host="10.17.48.106", key_path="k"), sources=srcs))
+    asyncio.run(run_scan("docker", cfg=DockerConfig(hosts=[DockerHost(name="fileshare", host_ip="192.168.1.10")]), sources=srcs))
+    correlate()
+    e = snapshot()["edges"]
+    # exact ip:port key beats the strip-the-port fallback
+    assert ["routes_to", "1e23e66b-97f2-4530-ad2b-6098e07a82d1", "filebrowser"] in e  # fileshare.ghaw.net
+    assert ["routes_to", "1e23e66b-97f2-4530-ad2b-6098e07a82d1", "transfer-transfer-1"] in e  # drop.ghaw.net
