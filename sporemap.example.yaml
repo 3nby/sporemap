@@ -23,3 +23,8 @@ sources:
   #   host: 192.168.1.10
   #   key_path: ~/.ssh/sporemap       # key with a forced "cat config.yml" command, see docs
   #   host_ip: 192.168.1.10           # lan ip of that box, for localhost services
+  # docker:                           # one entry per machine running docker
+  #   hosts:
+  #     - name: nas
+  #       url: http://127.0.0.1:2375  # read-only socket proxy, keep it off the network
+  #       host_ip: 192.168.1.10
