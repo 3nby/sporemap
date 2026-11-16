@@ -1,0 +1,30 @@
+/* bare bones on purpose, the real look comes later */
+* { box-sizing: border-box; }
+html, body, #root { height: 100%; margin: 0; }
+body { font-family: system-ui, sans-serif; font-size: 14px; color: #1d2026; background: #f6f7f9; }
+
+.app { display: flex; flex-direction: column; height: 100%; }
+header { display: flex; align-items: center; gap: 16px; padding: 8px 14px; background: #fff; border-bottom: 1px solid #dde0e5; flex-wrap: wrap; }
+header label { display: flex; align-items: center; gap: 4px; }
+.muted { color: #6b7280; font-size: 12px; }
+.legend { display: flex; gap: 10px; font-size: 12px; color: #4b5563; margin-left: auto; }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; }
+.err { background: #fde8e8; color: #9b1c1c; padding: 8px 14px; }
+
+main { flex: 1; position: relative; display: flex; min-height: 0; }
+main > .react-flow { flex: 1; }
+
+.spore { width: 190px; height: 54px; padding: 7px 10px; background: #fff; border: 1px solid #d1d5db; border-left: 5px solid; border-radius: 6px; }
+.spore .kind { font-size: 10px; text-transform: uppercase; letter-spacing: .05em; color: #6b7280; }
+.spore .name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.spore.sel { box-shadow: 0 0 0 2px #2563eb; }
+.spore.stale { opacity: .45; border-style: dashed; }
+.spore.guess { border-style: dotted; }
+
+.react-flow__edge-text { font-size: 10px; fill: #6b7280; }
+
+aside { width: 320px; background: #fff; border-left: 1px solid #dde0e5; padding: 14px; overflow: auto; position: relative; }
+aside h2 { margin: 2px 0 6px; font-size: 18px; word-break: break-all; }
+aside .kind { font-size: 11px; text-transform: uppercase; color: #6b7280; }
+aside pre { background: #f3f4f6; padding: 10px; border-radius: 6px; font-size: 12px; overflow: auto; }
+aside .x { position: absolute; top: 8px; right: 8px; border: 0; background: none; cursor: pointer; font-size: 16px; }

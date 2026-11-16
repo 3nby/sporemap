@@ -38,3 +38,14 @@ Setting up discoveries for: proxmox, docker, cloudflare, caddy and basic graph i
 - Plan/Apply actions
 - New-service wizard
 - Backup wizard and quickview
+
+# Web UI
+The map lives in `web/` (Vite + React + React Flow + ELK). `npm run build` writes it into
+`src/sporemap/ui/`, and `sporemap serve` hands it out at `/`.
+
+```
+cd web
+npm install
+npm run build     # then: sporemap serve, open http://127.0.0.1:8420
+npm run dev       # hot reload on :5173, proxies /api to a running sporemap serve
+```
