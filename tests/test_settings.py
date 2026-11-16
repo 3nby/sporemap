@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from sporemap.settings import Settings
+from sporemap.settings import Settings, get_settings
 
 
 def test_defaults():
@@ -38,3 +38,22 @@ def test_missing_yaml_is_fine(monkeypatch, tmp_path):
     monkeypatch.setenv("SPOREMAP_CONFIG", str(tmp_path / "nope.yaml"))
     assert Settings().port == 8420
     assert isinstance(Settings().data_dir, Path)
+
+
+def test_empty_sources_in_yaml_are_ok(tmp_path, monkeypatch):
+    # every source commented out (like the example file), and a source with no settings at all
+    f = tmp_path / "s.yaml"
+    f.write_text("sources:\n  # demo: {}\n")
+    monkeypatch.setenv("SPOREMAP_CONFIG", str(f))
+    get_settings.cache_clear()
+    assert get_settings().sources == {}
+    f.write_text("sources:\n  demo:\n  caddy:\n    host_ip: 10.0.0.1\n")
+    get_settings.cache_clear()
+    assert get_settings().sources == {"demo": {}, "caddy": {"host_ip": "10.0.0.1"}}
+
+
+def test_example_yaml_loads(monkeypatch):
+    ex = Path(__file__).parent.parent / "sporemap.example.yaml"
+    monkeypatch.setenv("SPOREMAP_CONFIG", str(ex))
+    get_settings.cache_clear()
+    assert get_settings().sources == {}  # nothing on by default, not even demo

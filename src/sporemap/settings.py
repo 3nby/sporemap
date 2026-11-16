@@ -3,6 +3,7 @@ from functools import lru_cache
 from pathlib import Path
 
 from platformdirs import user_data_dir
+from pydantic import field_validator
 from pydantic_settings import (
     BaseSettings,
     SettingsConfigDict,
@@ -27,6 +28,16 @@ class Settings(BaseSettings):
     log_level: str = "info"
     scan_timeout: float = 120  # seconds per source run
     sources: dict[str, dict] = {}  # per-source settings from sporemap.yaml, NO secrets in here
+
+    @field_validator("sources", mode="before")
+    @classmethod
+    def _empty_ok(cls, v):
+        # "sources:" with everything commented out, or "demo:" with nothing after it, is yaml null
+        if v is None:
+            return {}
+        if isinstance(v, dict):
+            return {k: ({} if c is None else c) for k, c in v.items()}
+        return v
 
     @classmethod
     def settings_customise_sources(cls, settings_cls, init_settings, env_settings, dotenv_settings, file_secret_settings):
