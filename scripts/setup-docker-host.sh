@@ -77,4 +77,5 @@ ip=$(hostname -I 2>/dev/null | awk '{print $1}')
 echo
 echo "add this host to sporemap.yaml under docker.hosts:"
 echo "  - name: $(hostname)"
-echo "    host_ip: ${ip:-THIS_HOST_IP}"
+echo "    ssh: ${ip:-THIS_HOST_IP}"
+echo "    # jump: PROXMOX_HOST_IP   # if sporemap cant reach this ip directly (eg internal bridge)"

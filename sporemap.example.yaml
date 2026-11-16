@@ -24,7 +24,11 @@ sources:
   #   key_path: ~/.ssh/sporemap       # key with a forced "cat config.yml" command, see docs
   #   host_ip: 192.168.1.10           # lan ip of that box, for localhost services
   # docker:                           # one entry per machine running docker
+  #   key_path: ~/.ssh/sporemap       # for hosts reached over ssh (scripts/setup-docker-host.sh)
   #   hosts:
-  #     - name: nas
-  #       url: http://127.0.0.1:2375  # read-only socket proxy, keep it off the network
-  #       host_ip: 192.168.1.10
+  #     - name: nas                   # ssh mode: proxy stays on the box's 127.0.0.1:2375
+  #       ssh: 192.168.1.10           # [user@]host[:port], user defaults to sporemap
+  #       jump: 100.64.0.1            # optional hop, eg the proxmox host for CTs on an internal bridge
+  #     - name: other
+  #       url: http://192.168.1.20:2375  # direct mode, only if the proxy is firewalled to sporemap
+  #       host_ip: 192.168.1.20

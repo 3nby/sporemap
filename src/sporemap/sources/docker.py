@@ -1,7 +1,15 @@
-"""Docker source: containers and their published ports, via a read-only socket proxy."""
+"""Docker source: containers and their published ports, via a read-only socket proxy.
+
+The proxy should only listen on 127.0.0.1 of the docker box. Set ssh: on a host and
+sporemap reaches it through an ssh port forward (optionally hopping through a jump
+box, for machines on internal bridges), so the proxy never touches the network.
+"""
 import ipaddress
+import os
+from contextlib import AsyncExitStack, asynccontextmanager
 from urllib.parse import urlsplit
 
+import asyncssh
 import httpx2
 from pydantic import BaseModel
 
@@ -13,13 +21,21 @@ LOOPBACK = ("127.0.0.1", "::1")
 class DockerHost(BaseModel):
     name: str  # just a label, like "fileshare"
     url: str = "http://127.0.0.1:2375"  # a read-only socket proxy, never the raw docker socket over tcp
+    # with ssh set, url is where the proxy listens ON the docker box (so usually leave it alone)
     host_ip: str | None = None  # ip of the box docker runs on. links containers to it + places published ports
+    ssh: str | None = None  # [user@]host[:port] of the docker box, turns on tunnel mode
+    jump: str | None = None  # [user@]host[:port] to hop through first, eg the proxmox host
+    key_path: str | None = None  # overrides the one on the docker: section
+    known_hosts: str | None = None
 
 
 class DockerConfig(BaseModel):
     hosts: list[DockerHost]
     include_stopped: bool = True
     timeout: float = 10
+    key_path: str | None = None  # default ssh key for every host, eg ~/.ssh/sporemap
+    known_hosts: str | None = None  # None = your normal ~/.ssh/known_hosts
+    ssh_user: str = "sporemap"
 
 
 def _ip_or_none(s):
@@ -28,6 +44,22 @@ def _ip_or_none(s):
         return s
     except ValueError:
         return None
+
+
+def _target(s, user):
+    # "sporemap@10.0.0.5:2222" -> ("sporemap", "10.0.0.5", 2222). v6 needs [brackets] with a port
+    u, _, hp = s.rpartition("@")
+    port = 22
+    if hp.startswith("["):
+        h, _, rest = hp[1:].partition("]")
+        if rest.startswith(":"):
+            port = int(rest[1:])
+    elif hp.count(":") == 1:
+        h, p = hp.split(":")
+        port = int(p)
+    else:
+        h = hp
+    return (u or user), h, port
 
 
 def _name(c):
@@ -52,9 +84,42 @@ class Docker(Source):
         r.raise_for_status()
         return r.json()
 
+    @asynccontextmanager
+    async def _base(self, cfg, h):
+        """Yields the base url to talk to. Plain url, or a local port forwarded over ssh."""
+        if not h.ssh:
+            yield h.url
+            return
+        key = h.key_path or cfg.key_path
+        if not key:
+            raise ValueError(h.name + ": ssh is set but no key_path (set it on the host or the docker: section)")
+        kh = h.known_hosts or cfg.known_hosts
+        kw = {"client_keys": [os.path.expanduser(key)], "connect_timeout": cfg.timeout,
+              "known_hosts": os.path.expanduser(kh) if kh else ()}  # () = asyncssh default file
+        tgt = urlsplit(h.url)
+        async with AsyncExitStack() as st:
+            if h.jump:
+                ju, jh, jp = _target(h.jump, cfg.ssh_user)
+                kw["tunnel"] = await st.enter_async_context(asyncssh.connect(jh, port=jp, username=ju, **kw))
+            u, host, port = _target(h.ssh, cfg.ssh_user)
+            conn = await st.enter_async_context(asyncssh.connect(host, port=port, username=u, **kw))
+            # port 0 = let the os pick a free local port
+            lis = await conn.forward_local_port("127.0.0.1", 0, tgt.hostname or "127.0.0.1", tgt.port or 2375)
+            st.callback(lis.close)
+            # print(h.name, "forwarded to local port", lis.get_port())
+            yield "http://127.0.0.1:" + str(lis.get_port())
+
+    def _host_ip(self, h):
+        if h.host_ip:
+            return h.host_ip
+        if h.ssh:
+            return _ip_or_none(_target(h.ssh, "")[1])  # the box we ssh into is the docker box
+        ip = _ip_or_none(urlsplit(h.url).hostname)
+        return None if ip in LOOPBACK else ip  # 127.0.0.1 means "via a tunnel", not where docker actually is
+
     async def test(self, cfg):
         for h in cfg.hosts:
-            async with self._client(cfg, h.url) as c:
+            async with self._base(cfg, h) as base, self._client(cfg, base) as c:
                 await self._get(c, "/info")
 
     async def discover(self, cfg):
@@ -62,19 +127,18 @@ class Docker(Source):
         ok = 0
         for h in cfg.hosts:
             try:
-                await self._one(cfg, h, h.url, res)
+                async with self._base(cfg, h) as base:
+                    await self._one(cfg, h, base, res)
                 ok += 1
-            except (httpx2.HTTPError, PermissionError) as e:
+            except (httpx2.HTTPError, OSError, asyncssh.Error, ValueError) as e:  # OSError covers PermissionError + refused conns
                 res.warnings.append(h.name + ": " + type(e).__name__ + ": " + str(e))
         if cfg.hosts and not ok:
             raise RuntimeError("every docker host failed: " + "; ".join(res.warnings))
         return res.check()
 
     async def _one(self, cfg, h, base, res):
-        # base is split out so the ssh tunnel mode can point at its forwarded port
-        host_ip = h.host_ip or _ip_or_none(urlsplit(h.url).hostname)
-        if host_ip in LOOPBACK:
-            host_ip = None  # 127.0.0.1 means "via a tunnel", not where docker actually is
+        # base is the plain url or the forwarded local port from _base
+        host_ip = self._host_ip(h)
         if not host_ip:
             res.warnings.append(h.name + ": host_ip not set, containers wont be linked to the machine running them")
 
