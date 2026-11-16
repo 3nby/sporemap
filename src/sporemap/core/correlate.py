@@ -64,8 +64,9 @@ def correlate():
 
         # 2. reuse node ids from the last run where we can
         prev = {}
-        for o in s.exec(select(Observation).where(Observation.node_id.is_not(None),
-                                                   Observation.scan_id.not_in(ids))).all():
+        # include the current scans too: a source scanned once already got its node ids
+        # last run, and skipping those gave it brand new nodes every time anything else scanned
+        for o in s.exec(select(Observation).where(Observation.node_id.is_not(None)).order_by(Observation.id)).all():
             prev[(o.source, o.ext_id)] = o.node_id  # later rows overwrite, so newest wins
         claimed = set()
         gnode = {}

@@ -186,3 +186,21 @@ def test_unresolved_src_key_makes_placeholder():
     scan({"cad": cad}, "cad")
     correlate()
     assert snapshot()["edges"] == [["runs", "ip:10.9.9.9", "Caddy"]]
+
+
+def test_single_scan_source_keeps_ids_when_another_source_scans():
+    # proxmox scanned once, then caddy scanned: proxmox's nodes must not get new ids
+    migrate()
+    a = make_source("a", lambda: Result([Obs("host", "h1", "pve1", {}, ["mac:aa"])]))
+    b = make_source("b", lambda: Result([Obs("app", "p", "Caddy")]))
+    srcs = {"a": a, "b": b}
+    scan(srcs, "a")
+    correlate()
+    with Session(get_engine()) as s:
+        before = s.exec(select(Node).where(Node.name == "pve1")).one().id
+    scan(srcs, "b")
+    correlate()
+    correlate()  # and running it again changes nothing
+    with Session(get_engine()) as s:
+        hosts = s.exec(select(Node).where(Node.name == "pve1")).all()
+    assert [(h.id, h.stale) for h in hosts] == [(before, False)]  # no stale duplicate left behind
