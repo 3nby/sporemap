@@ -80,6 +80,25 @@ def sources_test(name: str):
     typer.echo(name + ": ok")
 
 
+@src_app.command("forget")
+def sources_forget(name: str, yes: bool = typer.Option(False, "--yes", "-y", help="Skip the confirmation.")):
+    """Delete everything a source has reported and rebuild the graph."""
+    from sporemap.core.scans import forget
+    from sporemap.db import migrate
+
+    if not yes:
+        typer.confirm("forget every scan from " + name + "? nodes only it knew about will be deleted", abort=True)
+    migrate()
+    r = forget(name)
+    if r is None:
+        typer.echo("nothing stored for " + name)
+        return
+    typer.echo("forgot " + name + ": " + str(r["scans"]) + " scans, " + str(r["observations"]) + " observations, "
+               + str(r["removed_nodes"]) + " nodes removed")
+    typer.echo("graph: " + str(r["nodes"]) + " nodes, " + str(r["edges"]) + " edges")
+    # dont unconfigure it, if its still in sporemap.yaml the next scan brings it right back
+
+
 @app.command()
 def scan(source: str = typer.Argument(..., help="Source name, see: sporemap sources list")):
     """Run one source now and store what it finds."""
