@@ -3,8 +3,8 @@ build/
 *.egg-info/
 __pycache__/
 .venv/
-sporemap.yaml.env
-
 .env
 sporemap.yaml
 scratch/
+src/sporemap/ui/
+web/node_modules/

@@ -1,4 +1,8 @@
+from pathlib import Path
+
 from fastapi import APIRouter, FastAPI
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -8,6 +12,16 @@ from sporemap.db import get_engine, migrate
 from sporemap.settings import get_settings
 
 r = APIRouter(prefix="/api/v1")
+
+UI = Path(__file__).parent.parent / "ui"  # vite builds web/ into here
+
+NO_UI = """<!doctype html><title>Sporemap</title>
+<body style="font-family:sans-serif;max-width:40rem;margin:4rem auto">
+<h1>Sporemap</h1>
+<p>The API is running, but the web UI hasn't been built.</p>
+<p>From the repo: <code>cd web</code>, <code>npm install</code>, <code>npm run build</code>, then reload.</p>
+<p>API docs: <a href="/docs">/docs</a></p>
+"""
 
 
 @r.get("/health")
@@ -30,5 +44,17 @@ def create_app():
     a.include_router(r)
     a.include_router(graph.r, prefix="/api/v1", tags=["graph"])
     a.include_router(scans.r, prefix="/api/v1", tags=["scans"])
+    _mount_ui(a, UI)
     # print("app built")
     return a
+
+
+def _mount_ui(a, d):
+    # mounted last so /api and /docs win over static files
+    if (d / "index.html").exists():
+        a.mount("/", StaticFiles(directory=d, html=True), name="ui")
+        return
+
+    @a.get("/", response_class=HTMLResponse, include_in_schema=False)
+    def no_ui():
+        return NO_UI

@@ -41,3 +41,23 @@ def test_scan_list_and_get(c):
     assert c.get("/api/v1/scans").json()[0]["id"] == sid
     assert c.get("/api/v1/scans/" + str(sid)).json()["status"] == "ok"
     assert c.get("/api/v1/scans/999").status_code == 404
+
+
+def test_root_without_ui_explains(monkeypatch, tmp_path):
+    from sporemap.api import app as appmod
+    monkeypatch.setattr(appmod, "UI", tmp_path / "nothing")
+    r = TestClient(create_app()).get("/")
+    assert r.status_code == 200 and "npm run build" in r.text
+
+
+def test_root_serves_built_ui(monkeypatch, tmp_path):
+    from sporemap.api import app as appmod
+    (tmp_path / "assets").mkdir()
+    (tmp_path / "index.html").write_text("<div id=root></div>")
+    (tmp_path / "assets" / "app.js").write_text("console.log(1)")
+    monkeypatch.setattr(appmod, "UI", tmp_path)
+    c = TestClient(create_app())
+    assert c.get("/").text == "<div id=root></div>"
+    assert c.get("/assets/app.js").text == "console.log(1)"
+    assert c.get("/api/v1/graph").json() == {"nodes": [], "edges": []}  # api still wins
+    assert c.get("/api/v1/nope").status_code == 404
