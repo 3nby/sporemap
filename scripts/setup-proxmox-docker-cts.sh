@@ -29,7 +29,8 @@ found=()
 skipped_priv=()
 for id in $(pct list | awk 'NR>1 && $2=="running" {print $1}'); do
   name=$(pct config "$id" | awk '/^hostname:/ {print $2}')
-  if ! pct exec "$id" -- sh -c 'command -v docker >/dev/null 2>&1'; then
+  # </dev/null on every pct exec, or it can sit there waiting on our stdin
+  if ! pct exec "$id" -- sh -c 'command -v docker >/dev/null 2>&1' </dev/null; then
     echo "   CT $id ($name): no docker, skipping"
   elif ! pct config "$id" | grep -q '^unprivileged: 1'; then
     # root in a privileged CT is root on this host, and docker there usually cant
@@ -50,7 +51,7 @@ for id in "${found[@]}"; do
   echo
   echo "########## CT $id"
   pct push "$id" "$SETUP" /root/setup-docker-host.sh --perms 755
-  if ! pct exec "$id" -- /root/setup-docker-host.sh "$KEY"; then
+  if ! pct exec "$id" -- /root/setup-docker-host.sh "$KEY" </dev/null; then
     failed+=("$id")
   fi
 done
@@ -59,7 +60,8 @@ echo
 echo "########## summary"
 ips=()
 for id in "${found[@]}"; do
-  ip=$(pct exec "$id" -- sh -c "hostname -I | awk '{print \$1}'" 2>/dev/null || true)
+  # eth0 on purpose, hostname -I can list docker0 (172.17.x) first
+  ip=$(pct exec "$id" -- sh -c "ip -4 -o addr show dev eth0 | awk '{print \$4}' | cut -d/ -f1 | head -1" </dev/null 2>/dev/null || true)
   name=$(pct config "$id" | awk '/^hostname:/ {print $2}')
   echo "CT $id  $name  ${ip:-?}"
   [ -n "$ip" ] && ips+=("$ip")

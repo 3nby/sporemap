@@ -67,11 +67,17 @@ if ! id sporemap >/dev/null 2>&1; then
   useradd --system --create-home --shell /usr/sbin/nologin sporemap
 fi
 install -d -m 700 -o sporemap -g sporemap /home/sporemap/.ssh
+AK=/home/sporemap/.ssh/authorized_keys
+touch "$AK"
+# other keys already here (eg your PC's) stay. an old line for this same key gets swapped out
+k=$(awk '{print $2}' <<<"$KEY")
+grep -vF "$k" "$AK" > "$AK.new" || true
 # restrict = no shell, pty, agent, x11 or forwarding. then allow forwarding to exactly one port.
-echo "restrict,port-forwarding,permitopen=\"127.0.0.1:$PORT\" $KEY" > /home/sporemap/.ssh/authorized_keys
-chown sporemap:sporemap /home/sporemap/.ssh/authorized_keys
-chmod 600 /home/sporemap/.ssh/authorized_keys
-say "ssh user ok: the key can only forward to 127.0.0.1:$PORT"
+echo "restrict,port-forwarding,permitopen=\"127.0.0.1:$PORT\" $KEY" >> "$AK.new"
+mv "$AK.new" "$AK"
+chown sporemap:sporemap "$AK"
+chmod 600 "$AK"
+say "ssh user ok: the key can only forward to 127.0.0.1:$PORT ($(grep -c . "$AK") key(s) allowed here)"
 
 ip=$(hostname -I 2>/dev/null | awk '{print $1}')
 echo
