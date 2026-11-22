@@ -51,13 +51,29 @@ def correlate():
         links = s.exec(select(RawLink).where(RawLink.scan_id.in_(ids)).order_by(RawLink.id)).all()
 
         # 1. merge on strong keys
+        # a source already told us two things apart by giving them different ext_ids,
+        # so never merge those even if they share a strong key. cloned CTs keep the
+        # same mac, and that glued a stopped CT onto the running clone
         uf = _UF(len(obs))
+        who = [{o.source: {o.ext_id}} for o in obs]  # per root: source -> ext_ids in the group
         seen = {}
         for i, o in enumerate(obs):
             for k in o.keys:
                 if k.startswith(STRONG):
                     j = seen.setdefault((o.kind, k), i)
-                    uf.union(i, j)
+                    ri, rj = uf.find(i), uf.find(j)
+                    if ri == rj:
+                        continue
+                    a, b = who[ri], who[rj]
+                    if any(src in b and b[src] != ids for src, ids in a.items()):
+                        # print("not merging " + o.ext_id + " into " + obs[j].ext_id + " on " + k)
+                        continue
+                    uf.union(ri, rj)
+                    r = uf.find(ri)
+                    m = {src: set(ids) for src, ids in a.items()}
+                    for src, ids in b.items():
+                        m.setdefault(src, set()).update(ids)
+                    who[r] = m
         groups = {}
         for i in range(len(obs)):
             groups.setdefault(uf.find(i), []).append(i)

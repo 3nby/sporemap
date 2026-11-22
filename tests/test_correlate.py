@@ -204,3 +204,39 @@ def test_single_scan_source_keeps_ids_when_another_source_scans():
     with Session(get_engine()) as s:
         hosts = s.exec(select(Node).where(Node.name == "pve1")).all()
     assert [(h.id, h.stale) for h in hosts] == [(before, False)]  # no stale duplicate left behind
+
+
+def test_cloned_guests_with_same_mac_stay_apart():
+    # live bug: CT 102 was cloned from CT 100 and kept its mac. mac is a strong key, so
+    # both CTs merged into one node and docker containers on 102 landed on stopped 100
+    migrate()
+    pve = make_source("pve", lambda: Result([
+        Obs("workload", "lxc/100", "ghost-controller", {"status": "stopped"},
+            ["pve:ghostprox/100", "mac:bc:24:11:e4:cf:28"]),
+        Obs("workload", "lxc/102", "unifi", {"status": "running"},
+            ["pve:ghostprox/102", "mac:bc:24:11:e4:cf:28", "ip:10.17.48.140"]),
+    ]))
+    dock = make_source("dock", lambda: Result(
+        [Obs("container", "unifi/abc", "unifi-db", {}, ["docker:unifi/abc"])],
+        [Link("hosts", "ip:10.17.48.140", "unifi/abc")]))
+    srcs = {"pve": pve, "dock": dock}
+    scan(srcs, "pve")
+    scan(srcs, "dock")
+    correlate()
+    snap = snapshot()
+    assert ["workload", "ghost-controller"] in snap["nodes"]
+    assert ["workload", "unifi"] in snap["nodes"]
+    assert snap["edges"] == [["hosts", "unifi", "unifi-db"]]
+
+
+def test_strong_key_still_merges_when_other_source_has_one_match():
+    # a second source seeing the shared mac still joins one of them, it just cant bridge both
+    migrate()
+    a = make_source("a", lambda: Result([Obs("host", "h1", "one", {}, ["mac:aa"]),
+                                         Obs("host", "h2", "two", {}, ["mac:aa"])]))
+    b = make_source("b", lambda: Result([Obs("host", "x", "one.lan", {}, ["mac:aa", "machine:m1"])]))
+    srcs = {"a": a, "b": b}
+    scan(srcs, "a")
+    scan(srcs, "b")
+    correlate()
+    assert len(snapshot()["nodes"]) == 2
