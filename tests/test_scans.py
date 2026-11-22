@@ -88,3 +88,49 @@ def test_cli_warns_when_source_not_configured():
     r = CliRunner().invoke(app, ["scan", "demo"])
     assert r.exit_code == 0
     assert "isn't configured" in r.output
+
+
+def test_scan_all_keeps_going_after_failures():
+    from sporemap.core.scans import scan_all
+
+    migrate()
+    srcs = {"demo": Demo, "boom": Boom}
+    res, g = asyncio.run(scan_all(["boom", "demo", "ghost"], sources=srcs))
+    by = {x["name"]: x for x in res}
+    assert by["boom"]["scan"].status == "failed" and "api said no" in by["boom"]["error"]
+    assert by["demo"]["scan"].status == "ok"
+    assert by["ghost"]["scan"] is None and by["ghost"]["error"] == "not installed"
+    assert g and g["nodes"] > 0  # demo still got correlated
+
+
+def test_scan_all_nothing_ok_skips_correlate():
+    from sporemap.core.scans import scan_all
+
+    migrate()
+    res, g = asyncio.run(scan_all(["boom"], sources={"boom": Boom}))
+    assert g is None and res[0]["scan"].status == "failed"
+
+
+def test_cli_scan_no_arg_uses_yaml(tmp_path, monkeypatch):
+    from typer.testing import CliRunner
+
+    from sporemap.cli import app
+    from sporemap.settings import get_settings
+
+    f = tmp_path / "s.yaml"
+    f.write_text("sources:\n  demo:\n")
+    monkeypatch.setenv("SPOREMAP_CONFIG", str(f))
+    get_settings.cache_clear()
+    r = CliRunner().invoke(app, ["scan"])
+    assert r.exit_code == 0, r.output
+    assert "demo: ok, 7 observations, 8 links" in r.output
+    assert "graph:" in r.output
+
+
+def test_cli_scan_no_arg_nothing_configured():
+    from typer.testing import CliRunner
+
+    from sporemap.cli import app
+    r = CliRunner().invoke(app, ["scan"])
+    assert r.exit_code == 1
+    assert "no sources configured" in r.output

@@ -103,26 +103,54 @@ def sources_forget(name: str, yes: bool = typer.Option(False, "--yes", "-y", hel
     # dont unconfigure it, if its still in sporemap.yaml the next scan brings it right back
 
 
-@app.command()
-def scan(source: str = typer.Argument(..., help="Source name, see: sporemap sources list")):
-    """Run one source now and store what it finds."""
-    import asyncio
-
+def _counts(sid):
     from sqlmodel import Session, func, select
 
-    from sporemap.core.correlate import correlate
-    from sporemap.core.scans import run_scan
-    from sporemap.db import get_engine, migrate
+    from sporemap.db import get_engine
     from sporemap.db.models import Observation, RawLink
+
+    with Session(get_engine()) as s:
+        no = s.exec(select(func.count()).select_from(Observation).where(Observation.scan_id == sid)).one()
+        nl = s.exec(select(func.count()).select_from(RawLink).where(RawLink.scan_id == sid)).one()
+    return str(no) + " observations, " + str(nl) + " links"
+
+
+@app.command()
+def scan(source: str = typer.Argument(None, help="Source name, see: sporemap sources list. Leave it off to scan everything in sporemap.yaml.")):
+    """Run one source (or every configured one) now and store what it finds."""
+    import asyncio
+
+    from sporemap.core.correlate import correlate
+    from sporemap.core.scans import run_scan, scan_all
+    from sporemap.db import migrate
     from sporemap.sources import load_sources
+    from sporemap.sources.config import SourceConfigError, build_config
 
     srcs = load_sources()
+
+    if source is None:
+        if not get_settings().sources:
+            typer.echo("no sources configured. add some to sporemap.yaml (see sporemap.example.yaml), or try: sporemap scan demo", err=True)
+            raise typer.Exit(1)
+        migrate()
+        res, g = asyncio.run(scan_all(sources=srcs))
+        bad = 0
+        for x in res:
+            sc = x["scan"]
+            if sc is not None and sc.status == "ok":
+                typer.echo(x["name"] + ": ok, " + _counts(sc.id))
+            else:
+                bad += 1
+                typer.echo(x["name"] + ": FAILED " + str(x["error"]), err=True)
+        if g:
+            typer.echo("graph: " + str(g["nodes"]) + " nodes, " + str(g["edges"]) + " edges")
+        if bad:
+            raise typer.Exit(1)
+        return
+
     if source not in srcs:
         typer.echo("no source named " + source + ". installed: " + ", ".join(sorted(srcs)), err=True)
         raise typer.Exit(1)
-
-    from sporemap.sources.config import SourceConfigError, build_config
-
     if source not in get_settings().sources:
         typer.echo("warning: " + source + " isn't configured in sporemap.yaml, using defaults", err=True)
     try:
@@ -136,11 +164,7 @@ def scan(source: str = typer.Argument(..., help="Source name, see: sporemap sour
     if sc.status != "ok":
         typer.echo("scan " + str(sc.id) + " failed: " + str(sc.error), err=True)
         raise typer.Exit(1)
-
-    with Session(get_engine()) as s:
-        no = s.exec(select(func.count()).select_from(Observation).where(Observation.scan_id == sc.id)).one()
-        nl = s.exec(select(func.count()).select_from(RawLink).where(RawLink.scan_id == sc.id)).one()
-    typer.echo("scan " + str(sc.id) + " ok: " + str(no) + " observations, " + str(nl) + " links")
+    typer.echo("scan " + str(sc.id) + " ok: " + _counts(sc.id))
     g = correlate()
     typer.echo("graph: " + str(g["nodes"]) + " nodes, " + str(g["edges"]) + " edges")
 

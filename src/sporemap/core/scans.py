@@ -55,6 +55,39 @@ async def run_scan(name, cfg=None, sources=None):
     return _finish(sid, "ok", None)
 
 
+async def scan_all(names=None, sources=None):
+    """Scan several sources one after another, then rebuild the graph once.
+
+    names=None means every source in sporemap.yaml. One source failing (bad config,
+    not installed, api down) never stops the rest. Returns (results, graph) where
+    results is a list of {"name", "scan", "error"} and graph is correlate()'s counts,
+    or None if nothing scanned ok.
+    """
+    from sporemap.core.correlate import correlate
+    from sporemap.sources.config import SourceConfigError
+
+    srcs = sources if sources is not None else load_sources()
+    if names is None:
+        names = sorted(get_settings().sources)
+    out = []
+    for n in names:
+        if n not in srcs:
+            out.append({"name": n, "scan": None, "error": "not installed"})
+            continue
+        try:
+            c = build_config(n, srcs[n])
+        except SourceConfigError as e:
+            out.append({"name": n, "scan": None, "error": str(e)})
+            continue
+        sc = await run_scan(n, cfg=c, sources=srcs)
+        out.append({"name": n, "scan": sc, "error": sc.error})
+    g = None
+    if any(x["scan"] is not None and x["scan"].status == "ok" for x in out):
+        g = await asyncio.to_thread(correlate)  # sync db work
+    # print(out)
+    return out, g
+
+
 def _finish(sid, status, err):
     with Session(get_engine()) as s:
         sc = s.get(Scan, sid)
