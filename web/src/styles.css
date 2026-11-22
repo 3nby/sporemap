@@ -75,9 +75,51 @@ main > .react-flow { flex: 1; background: var(--bg); }
 .react-flow__controls button { background: var(--surface); border-bottom-color: var(--line); fill: var(--bark); }
 .react-flow__minimap { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; }
 
-/* side panel */
-aside { width: 320px; background: var(--surface); border-left: 1px solid var(--line); padding: 14px; overflow: auto; position: relative; }
-aside h2 { margin: 2px 0 6px; font-size: 18px; word-break: break-all; }
-aside .kind { font-size: 11px; }
-aside pre { background: var(--surface-2); border: 1px solid var(--line); padding: 10px; border-radius: 6px; font-size: 12px; overflow: auto; }
-aside .x { position: absolute; top: 8px; right: 8px; border: 0; background: none; cursor: pointer; font-size: 16px; color: var(--muted); }
+/* spotlight: the selected thing's traffic paths stay bright, the rest fades */
+.react-flow__node.dim { opacity: .28; transition: opacity .2s; }
+.react-flow__node.lit .spore, .react-flow__node.lit .box { border-color: var(--clay); }
+.react-flow__edge.dim .react-flow__edge-path { opacity: .2; }
+
+/* inspector, docked right */
+.insp { width: 340px; flex-shrink: 0; background: var(--surface); border-left: 1px solid var(--line); padding: 14px 16px 24px; overflow: auto; }
+.insp-top { display: flex; align-items: center; gap: 8px; }
+.insp .tag { font-size: 10px; text-transform: uppercase; letter-spacing: .06em; padding: 2px 8px; border-radius: 4px; color: var(--ink); }
+.pill { font-size: 11px; padding: 1px 8px; border-radius: 10px; background: #E7EFD9; color: #4D6236; margin-left: 6px; text-transform: none; letter-spacing: 0; }
+.pill-off { background: #EEE6DA; color: var(--muted); }
+.insp .x { margin-left: auto; border: 0; background: none; cursor: pointer; font-size: 20px; line-height: 1; color: var(--muted); }
+.insp .x:hover { color: var(--ink); }
+.insp h2 { margin: 8px 0 2px; font-size: 19px; word-break: break-all; }
+.crumbs { font-size: 12px; color: var(--muted); margin-bottom: 10px; display: flex; flex-wrap: wrap; align-items: center; }
+.crumbs button { border: 0; background: none; padding: 0; color: var(--bark); cursor: pointer; font-size: 12px; }
+.crumbs button:hover { text-decoration: underline; }
+.crumbs i { font-style: normal; margin: 0 5px; }
+.lane-crumb { color: var(--moss); }
+
+.facts { margin: 10px 0 4px; }
+.facts > div { display: grid; grid-template-columns: 78px 1fr; gap: 8px; padding: 4px 0; border-bottom: 1px solid var(--surface-2); font-size: 13px; }
+.facts dt { color: var(--muted); font-size: 12px; }
+.facts dd { margin: 0; word-break: break-word; }
+.facts a { color: #8A5A1E; text-decoration-color: var(--clay); }
+
+.insp section { margin-top: 14px; }
+.insp h3 { margin: 0 0 6px; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 600; }
+.refs { display: flex; flex-wrap: wrap; gap: 5px; }
+.ref { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; padding: 2px 8px; border-radius: 5px; border: 1px solid var(--line); background: var(--surface-2); color: var(--ink); cursor: pointer; }
+.ref:hover { border-color: var(--bark); }
+.ref.off { cursor: default; color: var(--muted); }
+.ref i { width: 7px; height: 7px; border-radius: 2px; display: inline-block; }
+.path { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; padding: 5px 0; border-bottom: 1px dashed var(--line); }
+.path .arrow { font-style: normal; color: var(--clay); margin: 0 3px; }
+.src { font-size: 12px; padding: 2px 8px; border-radius: 5px; background: #EEF0E4; color: #4D6236; }
+.src small { color: var(--muted); margin-left: 5px; }
+.seen .muted { margin-top: 6px; }
+.raw { margin-top: 16px; font-size: 12px; color: var(--muted); }
+.raw summary { cursor: pointer; }
+.raw pre { background: var(--surface-2); border: 1px solid var(--line); padding: 10px; border-radius: 6px; font-size: 11px; overflow: auto; color: var(--ink); }
+
+/* hover peek card */
+.hover { position: fixed; z-index: 50; width: 250px; pointer-events: none; background: var(--surface); border: 1px solid var(--line); border-left: 4px solid; border-radius: 7px; padding: 8px 10px; box-shadow: 0 6px 18px rgba(46, 42, 35, .14); }
+.hover .name { font-size: 14px; margin: 1px 0 4px; }
+.hover .row { font-size: 12px; display: flex; gap: 8px; padding: 1px 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.hover .row span { color: var(--muted); min-width: 56px; }
+.hover .hint { font-size: 10px; color: var(--muted); margin-top: 5px; }

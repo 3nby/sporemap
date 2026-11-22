@@ -14,6 +14,17 @@ class NodeOut(BaseModel):
     last_seen: datetime
 
 
+class SeenBy(BaseModel):
+    source: str
+    ext_id: str  # what that source calls it, like "lxc/101"
+    name: str
+    seen_at: datetime
+
+
+class NodeDetail(NodeOut):
+    seen_by: list[SeenBy]  # one per source in its latest good scan
+
+
 class EdgeOut(BaseModel):
     id: int
     kind: str

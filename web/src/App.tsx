@@ -1,8 +1,15 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { applyNodeChanges, Background, Controls, MarkerType, MiniMap, ReactFlow, type Edge, type Node } from '@xyflow/react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  applyNodeChanges, Background, Controls, MarkerType, MiniMap, ReactFlow,
+  type Edge, type Node, type ReactFlowInstance,
+} from '@xyflow/react'
 import { getGraph, type GNode, type Graph } from './api'
+import { index } from './facts'
+import { HoverCard } from './HoverCard'
+import { Inspector } from './Inspector'
 import { H, H_CHIPS, TOP, TOP_CHIPS, TOP_LANE, W, layout, type Box } from './layout'
 import { BoxNode, INK, KIND_COLOR, LaneNode, SporeNode, type SporeData } from './SporeNode'
+import { trace } from './trace'
 import { buildView, type View } from './view'
 
 const nodeTypes = { spore: SporeNode, box: BoxNode, lane: LaneNode }
@@ -50,7 +57,9 @@ export function App() {
   const [err, setErr] = useState('')
   const [busy, setBusy] = useState(false)
   const [sel, setSel] = useState<GNode | null>(null)
-  const [hover, setHover] = useState('')
+  const [hover, setHover] = useState('') // edge under the mouse
+  const [hov, setHov] = useState<{ g: GNode; x: number; y: number } | null>(null) // peek card
+  const [rf, setRf] = useState<ReactFlowInstance<Node<SporeData>, Edge> | null>(null)
 
   const load = useCallback(async () => {
     setBusy(true)
@@ -82,24 +91,81 @@ export function App() {
     }
   }, [view])
 
-  // labels only on the line under the mouse, or the ones touching the selected thing
+  const ix = useMemo(() => (graph ? index(graph) : null), [graph])
+  // the spotlight: everything on the selected thing's traffic paths
+  const lit = useMemo(() => (sel && ix ? trace(sel.id, ix) : null), [sel, ix])
+  const spot = lit !== null && lit.nodes.size > 1
+
+  // lit cards + the boxes around them stay bright, the rest fades
+  const shown = useMemo(() => {
+    if (!spot || !view) return nodes
+    const keep = new Set<number>()
+    for (const id of lit.nodes) {
+      for (let p: number | undefined = id; p !== undefined; p = view.parent.get(p)) keep.add(p)
+    }
+    return nodes.map((n) => {
+      const id = Number(n.id)
+      const cls = lit.nodes.has(id) ? 'lit' : keep.has(id) || id < 0 ? '' : 'dim'
+      return cls ? { ...n, className: cls } : n
+    })
+  }, [nodes, lit, spot, view])
+
+  // labels only on the line under the mouse, or the lit ones
   const edges: Edge[] = useMemo(() => {
     if (!view) return []
     return view.edges.map((e) => {
       const id = 'e' + e.id
-      const near = sel !== null && (e.src === sel.id || e.dst === sel.id)
+      const on = spot ? lit.edges.has(e.id) : sel !== null && (e.src === sel.id || e.dst === sel.id)
       return {
         id,
         source: String(e.src),
         target: String(e.dst),
-        label: hover === id || near ? e.kind : undefined,
-        className: 'edge-' + e.kind + (near ? ' near' : ''),
+        label: hover === id || on ? e.kind : undefined,
+        className: 'edge-' + e.kind + (on ? ' near' : spot ? ' dim' : ''),
         // an arrow says which way traffic goes, no marching dashes
-        markerEnd: { type: MarkerType.ArrowClosed, width: 16, height: 16, color: near ? INK.near : INK.line },
+        markerEnd: { type: MarkerType.ArrowClosed, width: 16, height: 16, color: on ? INK.near : INK.line },
         zIndex: 1000, // or lines into a CT get drawn under its box
       }
     })
-  }, [view, hover, sel])
+  }, [view, hover, sel, lit, spot])
+
+  const drawn = useMemo(() => new Set(nodes.map((n) => Number(n.id))), [nodes])
+
+  // select something and fly the map to it (from the panel's links)
+  const jump = useCallback((id: number) => {
+    const g = ix?.byId.get(id) || view?.nodes.find((n) => n.id === id)
+    if (!g || !drawn.has(id)) return
+    setSel(g)
+    setNodes((ns) => ns.map((n) => (n.selected === (n.id === String(id)) ? n : { ...n, selected: n.id === String(id) })))
+    rf?.fitView({ nodes: [{ id: String(id) }], duration: 450, maxZoom: 1.1, padding: 0.6 })
+  }, [ix, view, drawn, rf])
+
+  const clear = useCallback(() => {
+    setSel(null)
+    setNodes((ns) => ns.map((n) => (n.selected ? { ...n, selected: false } : n)))
+  }, [])
+
+  useEffect(() => {
+    const k = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') clear()
+    }
+    window.addEventListener('keydown', k)
+    return () => window.removeEventListener('keydown', k)
+  }, [clear])
+
+  // hover peek card, after a short rest so sweeping the mouse across the map stays calm
+  const timer = useRef(0)
+  const peek = (e: React.MouseEvent, n: Node<SporeData>) => {
+    window.clearTimeout(timer.current)
+    if (n.data.g.kind === 'lane') return
+    const x = e.clientX
+    const y = e.clientY
+    timer.current = window.setTimeout(() => setHov({ g: n.data.g, x, y }), 380)
+  }
+  const unpeek = () => {
+    window.clearTimeout(timer.current)
+    setHov(null)
+  }
 
   const kinds = useMemo(() => Array.from(new Set(nodes.map((n) => n.data.g.kind))).filter((k) => k !== 'lane').sort(), [nodes])
 
@@ -124,12 +190,20 @@ export function App() {
       {err && <div className="err">{err}</div>}
       <main>
         <ReactFlow
-          nodes={nodes}
+          nodes={shown}
           edges={edges}
           nodeTypes={nodeTypes}
+          onInit={setRf}
           onNodesChange={(ch) => setNodes((ns) => applyNodeChanges(ch, ns))}
-          onNodeClick={(_, n) => setSel((n as Node<SporeData>).data.g)}
-          onPaneClick={() => setSel(null)}
+          onNodeClick={(_, n) => {
+            unpeek()
+            setSel((n as Node<SporeData>).data.g)
+          }}
+          onPaneClick={clear}
+          onNodeMouseEnter={(e, n) => peek(e, n as Node<SporeData>)}
+          onNodeMouseLeave={unpeek}
+          onNodeDragStart={unpeek}
+          onMoveStart={unpeek}
           onEdgeMouseEnter={(_, e) => setHover(e.id)}
           onEdgeMouseLeave={() => setHover('')}
           nodesConnectable={false}
@@ -141,16 +215,10 @@ export function App() {
           <MiniMap pannable zoomable maskColor="rgba(239, 233, 221, .7)"
             nodeColor={(n) => KIND_COLOR[(n as Node<SporeData>).data.g.kind] || INK.line} />
         </ReactFlow>
-        {sel && (
-          <aside>
-            <button className="x" onClick={() => setSel(null)}>x</button>
-            <div className="kind">{sel.kind + (sel.stale ? ' (stale)' : '')}</div>
-            <h2>{sel.name}</h2>
-            <div className="muted">{'id ' + sel.id + ', confidence ' + sel.confidence}</div>
-            <div className="muted">{'last seen ' + new Date(sel.last_seen).toLocaleString()}</div>
-            <pre>{JSON.stringify(sel.attrs, null, 2)}</pre>
-          </aside>
+        {sel && ix && view && (
+          <Inspector g={sel} ix={ix} view={view} lit={lit} canJump={(id) => drawn.has(id)} onJump={jump} onClose={clear} />
         )}
+        {hov && ix && <HoverCard g={hov.g} x={hov.x} y={hov.y} ix={ix} />}
       </main>
     </div>
   )

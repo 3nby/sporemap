@@ -32,6 +32,28 @@ def test_graph_kind_filter_drops_dangling_edges(c):
     assert g["edges"] == []
 
 
+def test_node_detail_says_who_saw_it(c):
+    c.post("/api/v1/scans", json={"source": "demo"})
+    g = c.get("/api/v1/graph").json()
+    pve = next(n for n in g["nodes"] if n["name"] == "pve1")
+    d = c.get("/api/v1/nodes/" + str(pve["id"])).json()
+    assert d["name"] == "pve1" and d["kind"] == pve["kind"] and d["attrs"] == pve["attrs"]
+    assert [(x["source"], x["ext_id"]) for x in d["seen_by"]] == [("demo", "node/pve1")]
+    assert d["seen_by"][0]["seen_at"]
+
+
+def test_node_detail_only_counts_latest_scan(c):
+    # scan twice: still one entry per source, not one per scan
+    c.post("/api/v1/scans", json={"source": "demo"})
+    c.post("/api/v1/scans", json={"source": "demo"})
+    nid = c.get("/api/v1/graph").json()["nodes"][0]["id"]
+    assert len(c.get("/api/v1/nodes/" + str(nid)).json()["seen_by"]) == 1
+
+
+def test_node_detail_404(c):
+    assert c.get("/api/v1/nodes/999").status_code == 404
+
+
 def test_unknown_source_404(c):
     assert c.post("/api/v1/scans", json={"source": "nope"}).status_code == 404
 

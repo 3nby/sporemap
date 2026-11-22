@@ -21,6 +21,16 @@ export type GEdge = {
 
 export type Graph = { nodes: GNode[]; edges: GEdge[] }
 
+export type SeenBy = { source: string; ext_id: string; name: string; seen_at: string }
+export type NodeDetail = GNode & { seen_by: SeenBy[] }
+
+// one node + which sources saw it. null when the backend is too old to have this
+export async function getNode(id: number): Promise<NodeDetail | null> {
+  const r = await fetch('/api/v1/nodes/' + id)
+  if (!r.ok) return null
+  return r.json()
+}
+
 export async function getGraph(stale: boolean): Promise<Graph> {
   const r = await fetch('/api/v1/graph?stale=' + stale)
   if (!r.ok) throw new Error('graph request failed: ' + r.status)

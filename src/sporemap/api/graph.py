@@ -1,9 +1,9 @@
-from fastapi import APIRouter
-from sqlmodel import Session, select
+from fastapi import APIRouter, HTTPException
+from sqlmodel import Session, col, func, select
 
-from sporemap.api.schemas import EdgeOut, GraphOut, NodeOut
+from sporemap.api.schemas import EdgeOut, GraphOut, NodeDetail, NodeOut, SeenBy
 from sporemap.db import get_engine
-from sporemap.db.models import Edge, Node
+from sporemap.db.models import Edge, Node, Observation, Scan
 
 r = APIRouter()
 
@@ -26,3 +26,19 @@ def graph(stale: bool = False, kind: str | None = None):
         edges=[EdgeOut(id=e.id, kind=e.kind, src=e.src_id, dst=e.dst_id, source=e.source,
                        confidence=e.confidence) for e in edges],
     )
+
+
+@r.get("/nodes/{nid}", response_model=NodeDetail)
+def node(nid: int):
+    """One node plus which sources saw it in their latest good scan (for the inspector)."""
+    with Session(get_engine()) as s:
+        n = s.get(Node, nid)
+        if n is None:
+            raise HTTPException(404, "no node " + str(nid))
+        # same scans the correlator builds from, so this matches the graph
+        latest = s.exec(select(func.max(Scan.id)).where(Scan.status == "ok").group_by(Scan.source)).all()
+        obs = s.exec(select(Observation).where(Observation.node_id == nid, col(Observation.scan_id).in_(latest))
+                     .order_by(Observation.source)).all()
+    seen = [SeenBy(source=o.source, ext_id=o.ext_id, name=o.name, seen_at=o.seen_at) for o in obs]
+    # print(nid, [o.source for o in obs])
+    return NodeDetail(**n.model_dump(), seen_by=seen)
