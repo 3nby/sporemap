@@ -20,3 +20,42 @@ jobs:
       - run: python -m pip install -e ".[dev]"
       - run: ruff check .
       - run: pytest -q
+
+  edge:
+    # every green push to main ships a wheel with the web UI to the rolling "edge"
+    # release. the lxc install pulls it with: sporemap update
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    concurrency:
+      group: edge
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: python -m pip install build
+      - run: python -m build --wheel
+        env:
+          SPOREMAP_REQUIRE_UI: "1"  # fail instead of shipping a wheel with no UI
+      - name: upload to the edge release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git tag -f edge
+          git push -f origin refs/tags/edge
+          gh release view edge >/dev/null 2>&1 || gh release create edge --prerelease --title edge --notes "rolling build"
+          for a in $(gh release view edge --json assets -q '.assets[].name'); do
+            gh release delete-asset edge "$a" -y
+          done
+          gh release upload edge dist/*.whl
+          # lxc-setup.sh reads the commit back out of these notes
+          gh release edit edge --notes "Rolling build of main with the web UI, not a release. commit: $GITHUB_SHA"

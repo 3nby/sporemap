@@ -12,8 +12,13 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
       - run: python -m pip install build
       - run: python -m build
+        env:
+          SPOREMAP_REQUIRE_UI: "1"  # the wheel on pypi must carry the web UI
       - uses: actions/upload-artifact@v4
         with:
           name: dist

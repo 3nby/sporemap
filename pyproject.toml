@@ -43,3 +43,9 @@ docker = "sporemap.sources.docker:Docker"
 
 [project.urls]
 Homepage = "https://github.com/3nby/sporemap"
+
+[tool.hatch.build.hooks.custom]
+# hatch_build.py: runs npm in web/ and packs the result into the wheel as sporemap/ui
+
+[tool.hatch.build.targets.sdist]
+exclude = ["web/node_modules", "scratch", ".vscode"]

@@ -2,6 +2,7 @@
 # Installs or updates Sporemap on a Debian box: the CT install-lxc.sh makes, a VM, whatever.
 #   - a "sporemap" system user, data in /var/lib/sporemap
 #   - the code in /opt/sporemap (git checkout + venv), config in /etc/sporemap
+#     on main it installs CI's edge wheel (has the web UI), other refs build from the checkout
 #   - a systemd service that serves on 0.0.0.0:8420 and scans on a schedule
 #   - a "sporemap" command that runs as the service user, plus "sporemap update"
 #
@@ -18,6 +19,7 @@ ETC=/etc/sporemap
 DATA=/var/lib/sporemap
 U=sporemap
 KEY=$DATA/.ssh/id_ed25519
+EDGE_API="${SPOREMAP_EDGE_API:-https://api.github.com/repos/3nby/sporemap/releases/tags/edge}"
 
 say() { echo "== $*"; }
 die() { echo "!! $*" >&2; exit 1; }
@@ -48,6 +50,26 @@ write_yaml() {
   chmod 640 "$f"
 }
 
+# grabs the newest wheel from the rolling "edge" release (built by CI from main, has the
+# web UI). sets WHL + EDGE_SHA. returns 1 if theres no wheel, then we build from source
+edge_wheel() {
+  local j url d
+  j=$(curl -fsSL "$EDGE_API" 2>/dev/null) || { say "couldnt reach the edge release"; return 1; }
+  # sha first: read eats leading spaces, so an empty url has to be the last field
+  read -r EDGE_SHA url < <(python3 -c '
+import json, re, sys
+d = json.loads(sys.stdin.read())
+w = [a["browser_download_url"] for a in d.get("assets", []) if a["name"].endswith(".whl")]
+m = re.search(r"[0-9a-f]{40}", d.get("body") or "")
+print(m.group(0) if m else "unknown", w[0] if w else "")
+' <<<"$j") || return 1
+  # echo "edge: $url $EDGE_SHA"
+  [ -n "$url" ] || { say "the edge release has no wheel yet"; return 1; }
+  d=$(mktemp -d)
+  WHL=$d/${url##*/}  # pip wants the real wheel filename
+  curl -fsSL -o "$WHL" "$url" || { rm -rf "$d"; say "couldnt download $url"; return 1; }
+}
+
 install_app() {
   local ref=${1:-main}
 
@@ -74,11 +96,29 @@ install_app() {
   git -C $SRC checkout -q --force FETCH_HEAD
   # git -C $SRC log -3 --oneline
   say "code is at $(git -C $SRC log -1 --format='%h %s')"
+  # a newer version of this script came with the checkout? hand over to it right away
+  if [ -z "${SPOREMAP_REEXEC:-}" ] && ! cmp -s $SRC/scripts/lxc-setup.sh "$0"; then
+    install -m 755 $SRC/scripts/lxc-setup.sh $APP/lxc-setup.sh
+    say "lxc-setup.sh changed, switching to the new one"
+    SPOREMAP_REEXEC=1 exec $APP/lxc-setup.sh install "$ref"
+  fi
 
   [ -x $VENV/bin/python ] || python3 -m venv $VENV
   $VENV/bin/pip install -q --upgrade pip
-  # a local path always gets rebuilt, so this really updates even when the version didnt change
-  $VENV/bin/pip install -q --upgrade $SRC
+  if [ "$ref" = main ] && edge_wheel; then
+    say "installing $(basename "$WHL") from the edge release (commit ${EDGE_SHA:0:7})"
+    if [ "$EDGE_SHA" != "$(git -C $SRC rev-parse HEAD)" ]; then
+      say "  that wheel is behind main, CI is probably still building it. run sporemap update again in a few minutes"
+    fi
+    # same version number every build, so force it in, then a normal install pulls new deps
+    $VENV/bin/pip install -q --force-reinstall --no-deps "$WHL"
+    $VENV/bin/pip install -q "$WHL"
+    rm -rf "$(dirname "$WHL")"
+  else
+    say "building from the checkout, so no web UI (only the edge wheel from main and pypi releases have it)"
+    # a local path always gets rebuilt, so this really updates even when the version didnt change
+    $VENV/bin/pip install -q --upgrade $SRC
+  fi
   install -m 755 $SRC/scripts/lxc-setup.sh $APP/lxc-setup.sh  # so the next update uses the newest version of this
 
   if [ ! -f $ETC/sporemap.yaml ]; then
