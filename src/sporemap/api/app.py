@@ -1,3 +1,5 @@
+import asyncio
+import contextlib
 from pathlib import Path
 
 from fastapi import APIRouter, FastAPI
@@ -8,6 +10,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from sporemap import __version__
 from sporemap.api import graph, scans
+from sporemap.core.schedule import Scheduler
 from sporemap.db import get_engine, migrate
 from sporemap.settings import get_settings
 
@@ -35,12 +38,26 @@ def health():
     return {"status": "ok" if db == "ok" else "degraded", "version": __version__, "db": db}
 
 
-def create_app():
+@contextlib.asynccontextmanager
+async def _life(a):
+    sch = a.state.sched
+    t = asyncio.create_task(sch.run()) if sch.on else None
+    yield
+    if t is not None:
+        # a scan cut off here stays "running" in the db, next start just scans again
+        t.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await t
+
+
+def create_app(sources=None):
     s = get_settings()
     s.data_dir.mkdir(parents=True, exist_ok=True)  # db + keys live here
     migrate()  # no-op when already up to date
 
-    a = FastAPI(title="Sporemap", version=__version__)
+    a = FastAPI(title="Sporemap", version=__version__, lifespan=_life)
+    a.state.sched = Scheduler(sources)
+    a.state.sched.on = s.schedule
     a.include_router(r)
     a.include_router(graph.r, prefix="/api/v1", tags=["graph"])
     a.include_router(scans.r, prefix="/api/v1", tags=["scans"])

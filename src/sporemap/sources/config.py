@@ -26,6 +26,7 @@ def build_config(name, cls):
     """
     model = cls.Config
     base = dict(get_settings().sources.get(name) or {})
+    base.pop("scan_every", None)  # thats for the scheduler, not the source
     dot = {}
     for f in env_files():  # later files win
         dot.update(dotenv_values(f))

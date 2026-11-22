@@ -4,6 +4,8 @@
 # host: 127.0.0.1
 # port: 8420
 # scan_timeout: 120
+# scan_every: 15m                  # serve scans every source this often (30s, 15m, 2h, 1d, or off)
+#                                  # any source can set its own scan_every, or scan_every: off
 
 sources:
   # demo: {}                       # fake lab to try sporemap without one: sporemap scan demo
@@ -12,6 +14,7 @@ sources:
   #   host: 192.168.1.10          # or a tailscale ip
   #   token_id: sporemap@pve!scan
   #   verify_ssl: false           # true if your node has a real cert
+  #   scan_every: 5m              # optional, overrides the global scan_every
   #   # secret goes in .env as SPOREMAP_PROXMOX_TOKEN_SECRET
   # caddy:
   #   url: http://192.168.1.70:2020   # read-only proxy of the admin api, see docs

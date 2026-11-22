@@ -32,6 +32,19 @@ class ScanIn(BaseModel):
     source: str
 
 
+class ScheduledSource(BaseModel):
+    name: str
+    every: float | None  # seconds, None = only by hand
+    last_run: datetime | None
+    next_run: datetime | None
+
+
+class ScheduleOut(BaseModel):
+    enabled: bool
+    running: list[str]
+    sources: list[ScheduledSource]
+
+
 class ScanOut(BaseModel):
     id: int
     source: str

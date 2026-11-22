@@ -1,18 +1,17 @@
 import asyncio
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from sqlmodel import Session, select
 
-from sporemap.api.schemas import ScanIn, ScanOut
+from sporemap.api.schemas import ScanIn, ScanOut, ScheduleOut
 from sporemap.core.correlate import correlate
-from sporemap.core.scans import run_scan
+from sporemap.core.scans import run_scan, scan_lock
 from sporemap.db import get_engine
 from sporemap.db.models import Scan
 from sporemap.sources import load_sources
 from sporemap.sources.config import SourceConfigError, build_config
 
 r = APIRouter()
-_lock = asyncio.Lock()  # one scan at a time for now, the scheduler will get smarter
 
 
 @r.post("/scans", response_model=ScanOut, status_code=201)
@@ -25,11 +24,17 @@ async def start_scan(body: ScanIn):
         cfg = build_config(body.source, srcs[body.source])
     except SourceConfigError as e:
         raise HTTPException(400, str(e)) from e
-    async with _lock:
+    async with scan_lock():  # waits for a scheduled run to finish first
         sc = await run_scan(body.source, cfg=cfg, sources=srcs)
         if sc.status == "ok":
             await asyncio.to_thread(correlate)  # sync db work, keep it off the event loop
     return ScanOut(**sc.model_dump())
+
+
+@r.get("/schedule", response_model=ScheduleOut)
+def schedule(req: Request):
+    """When each source last ran and when it runs next. every is in seconds, null = off."""
+    return req.app.state.sched.status()
 
 
 @r.get("/scans", response_model=list[ScanOut])

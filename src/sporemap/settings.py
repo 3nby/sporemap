@@ -12,6 +12,29 @@ from pydantic_settings import (
 
 ETC = Path("/etc/sporemap")  # where the lxc install puts things
 
+_UNITS = {"s": 1, "m": 60, "h": 3600, "d": 86400}
+
+
+def parse_every(v):
+    """Turn a scan interval into seconds: 90, "90s", "15m", "2h", "1d".
+
+    0, "off", false or null mean dont schedule it (returns None).
+    """
+    if v is None or v is False:
+        return None
+    if v is True:
+        raise ValueError("scan_every needs a duration like 15m, or off")
+    if isinstance(v, (int, float)):
+        return float(v) if v > 0 else None
+    t = str(v).strip().lower()
+    if t in ("", "0", "off", "never", "no", "false"):
+        return None
+    try:
+        n = float(t[:-1]) * _UNITS[t[-1]] if t[-1] in _UNITS else float(t)
+    except ValueError:
+        raise ValueError("cant read " + repr(v) + " as a duration, try 30s, 15m, 2h or off") from None
+    return n if n > 0 else None
+
 
 def _cfg_path():
     # SPOREMAP_CONFIG wins, then sporemap.yaml in cwd (dev), then /etc/sporemap (installed)
@@ -42,7 +65,14 @@ class Settings(BaseSettings):
     port: int = 8420
     log_level: str = "info"
     scan_timeout: float = 120  # seconds per source run
+    schedule: bool = True  # serve scans on its own. serve --no-schedule turns it off
+    scan_every: float | None = 900  # default interval for every source, None = only sources with their own
     sources: dict[str, dict] = {}  # per-source settings from sporemap.yaml, NO secrets in here
+
+    @field_validator("scan_every", mode="before")
+    @classmethod
+    def _every(cls, v):
+        return parse_every(v)
 
     @field_validator("sources", mode="before")
     @classmethod
@@ -51,7 +81,14 @@ class Settings(BaseSettings):
         if v is None:
             return {}
         if isinstance(v, dict):
-            return {k: ({} if c is None else c) for k, c in v.items()}
+            out = {}
+            for k, c in v.items():
+                c = {} if c is None else c
+                if isinstance(c, dict) and "scan_every" in c:  # per-source override, check it now not at 3am
+                    c = dict(c)
+                    c["scan_every"] = parse_every(c["scan_every"])
+                out[k] = c
+            return out
         return v
 
     @classmethod

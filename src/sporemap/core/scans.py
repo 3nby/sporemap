@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import weakref
 
 from sqlmodel import Session
 
@@ -10,6 +11,20 @@ from sporemap.sources import load_sources
 from sporemap.sources.config import build_config
 
 log = logging.getLogger(__name__)
+
+_locks = weakref.WeakKeyDictionary()
+
+
+def scan_lock():
+    """The lock the api and the scheduler hold while scanning, so they never overlap.
+
+    One per event loop, bc an asyncio.Lock sticks to the first loop that waits on it
+    and tests spin up a fresh loop every time.
+    """
+    lp = asyncio.get_running_loop()
+    if lp not in _locks:
+        _locks[lp] = asyncio.Lock()
+    return _locks[lp]
 
 
 async def run_scan(name, cfg=None, sources=None):

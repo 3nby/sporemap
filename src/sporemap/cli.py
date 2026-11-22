@@ -9,10 +9,17 @@ app = typer.Typer(help="Sporemap: your homelab, mapped automatically.", no_args_
 @app.command()
 def serve(host: str = typer.Option(None, help="Defaults to the configured host."),
           port: int = typer.Option(None, help="Defaults to the configured port."),
-          reload: bool = False):
-    """Run the web server."""
+          reload: bool = False,
+          schedule: bool = typer.Option(True, "--schedule/--no-schedule",
+                                        help="Scan sources on their scan_every interval.")):
+    """Run the web server (and scan on a schedule)."""
+    import os
+
     import uvicorn  # lazy so the cli stays snappy i guess
 
+    if not schedule:
+        os.environ["SPOREMAP_SCHEDULE"] = "false"  # env so the app factory (and --reload kids) see it
+        get_settings.cache_clear()
     s = get_settings()
     h = host or s.host
     p = port or s.port
