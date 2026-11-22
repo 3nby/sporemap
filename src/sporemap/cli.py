@@ -24,10 +24,14 @@ def serve(host: str = typer.Option(None, help="Defaults to the configured host."
 @app.command()
 def config():
     """Show the settings Sporemap will use."""
+    from sporemap.settings import _cfg_path, env_files
     from sporemap.sources import load_sources
     from sporemap.sources.config import SourceConfigError, redacted
 
     s = get_settings()
+    c = _cfg_path()
+    typer.echo("config file: " + str(c.resolve()) + ("" if c.exists() else " (not found, using defaults)"))
+    typer.echo("env files: " + (", ".join(str(f.resolve()) for f in env_files()) or "none"))
     for k, v in s.model_dump().items():
         if k != "sources":
             typer.echo(k + ": " + str(v))

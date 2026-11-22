@@ -10,13 +10,28 @@ from pydantic_settings import (
     YamlConfigSettingsSource,
 )
 
+ETC = Path("/etc/sporemap")  # where the lxc install puts things
+
 
 def _cfg_path():
-    # SPOREMAP_CONFIG wins, otherwise look for sporemap.yaml in cwd
+    # SPOREMAP_CONFIG wins, then sporemap.yaml in cwd (dev), then /etc/sporemap (installed)
     p = os.environ.get("SPOREMAP_CONFIG")
     if p:
         return Path(p)
+    if Path("sporemap.yaml").exists():
+        return Path("sporemap.yaml")
+    if (ETC / "sporemap.yaml").exists():
+        return ETC / "sporemap.yaml"
     return Path("sporemap.yaml")
+
+
+def env_files():
+    # sporemap.env next to the yaml, then .env in cwd. later ones win, real env vars beat both
+    out = []
+    for f in (_cfg_path().parent / "sporemap.env", Path(".env")):
+        if f.exists() and f.resolve() not in [x.resolve() for x in out]:
+            out.append(f)
+    return out
 
 
 class Settings(BaseSettings):
@@ -48,6 +63,6 @@ class Settings(BaseSettings):
 
 @lru_cache
 def get_settings():
-    s = Settings()
+    s = Settings(_env_file=env_files() or None)
     # print("data dir: " + str(s.data_dir))
     return s

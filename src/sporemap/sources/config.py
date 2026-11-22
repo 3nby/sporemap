@@ -1,10 +1,9 @@
 import os
-from pathlib import Path
 
 from dotenv import dotenv_values
 from pydantic import SecretStr, ValidationError
 
-from sporemap.settings import get_settings
+from sporemap.settings import env_files, get_settings
 
 
 class SourceConfigError(ValueError):
@@ -27,7 +26,9 @@ def build_config(name, cls):
     """
     model = cls.Config
     base = dict(get_settings().sources.get(name) or {})
-    dot = dotenv_values(Path(".env")) if Path(".env").exists() else {}
+    dot = {}
+    for f in env_files():  # later files win
+        dot.update(dotenv_values(f))
 
     for fname, f in model.model_fields.items():
         if _is_secret(f) and fname in base:

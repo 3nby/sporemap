@@ -1,5 +1,5 @@
-# copy to sporemap.yaml (or point SPOREMAP_CONFIG at it)
-# secrets do NOT go here, put them in env vars or .env
+# copy to sporemap.yaml. sporemap looks in this order: SPOREMAP_CONFIG, ./sporemap.yaml, /etc/sporemap/sporemap.yaml
+# secrets do NOT go here, put them in env vars, .env, or sporemap.env next to this file
 
 # host: 127.0.0.1
 # port: 8420
