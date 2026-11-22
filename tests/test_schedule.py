@@ -108,10 +108,11 @@ def test_tick_waits_for_api_scan(monkeypatch, tmp_path):
     assert asyncio.run(go()) == ["demo"]
 
 
-def _wait_for_run(c, n=50):
+def _wait_for_run(c, n=100):
+    # last_run shows up as soon as the scan row exists, so also wait for it to finish
     for _ in range(n):
         st = c.get("/api/v1/schedule").json()
-        if st["sources"] and st["sources"][0]["last_run"]:
+        if st["sources"] and st["sources"][0]["last_run"] and not st["running"]:
             return st
         time.sleep(0.05)
     return st
