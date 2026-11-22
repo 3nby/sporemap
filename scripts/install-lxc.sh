@@ -102,8 +102,10 @@ else
 
   say "finding the newest debian template"
   pveam update >/dev/null || warn "pveam update failed, using the template list we have"
-  T=$(pveam available --section system | awk '{print $2}' | grep -E '^debian-[0-9]+-standard' | sort -V | tail -1)
-  [ -n "$T" ] || die "no debian template found in pveam available"
+  # pveam lists arm64 builds too, and one of those wont start on an amd64 host
+  arch=$(dpkg --print-architecture)
+  T=$(pveam available --section system | awk '{print $2}' | grep -E "^debian-[0-9]+-standard_.*_$arch\.tar" | sort -V | tail -1)
+  [ -n "$T" ] || die "no debian template for $arch found in pveam available"
   if ! pveam list "$TSTORE" | grep -q "$T"; then
     say "downloading $T"
     pveam download "$TSTORE" "$T" >/dev/null
@@ -113,6 +115,9 @@ else
   pct create "$ID" "$TSTORE:vztmpl/$T" --hostname "$NAME" --unprivileged 1 --features nesting=1 \
     --cores 1 --memory 512 --swap 512 --rootfs "$STORE:4" --net0 "$NET0" "${NET1[@]}" \
     --onboot 1 --start 1 --description "Sporemap, made by install-lxc.sh. update: pct exec $ID -- /usr/local/bin/sporemap update" >/dev/null
+  # pct create says nothing when --start fails, so check
+  pct status "$ID" | grep -q running \
+    || die "CT $ID was made but wont start. see why: pct start $ID --debug. clean up: pct destroy $ID"
 fi
 
 # bridges this CT is on, and this host's ip on the first of them (what the CT uses to reach us)
