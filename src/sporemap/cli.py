@@ -72,23 +72,63 @@ def sources_test(name: str):
     """Check that a source's config can reach its system."""
     import asyncio
 
-    from sporemap.sources import load_sources
-    from sporemap.sources.config import SourceConfigError, build_config
+    from sporemap.core.doctor import check
 
-    srcs = load_sources()
-    if name not in srcs:
-        typer.echo("no source named " + name, err=True)
+    x = asyncio.run(check(name))
+    if not x["ok"]:
+        _bad(x)
         raise typer.Exit(1)
-    try:
-        cfg = build_config(name, srcs[name])
-        asyncio.run(srcs[name]().test(cfg))
-    except SourceConfigError as e:
-        typer.echo(str(e), err=True)
-        raise typer.Exit(1) from e
-    except Exception as e:  # show whatever the source threw
-        typer.echo(name + ": FAILED " + type(e).__name__ + ": " + str(e), err=True)
-        raise typer.Exit(1) from e
     typer.echo(name + ": ok")
+
+
+def _bad(x):
+    typer.echo(x["name"] + ": FAILED " + str(x["error"]), err=True)
+    if x["hint"]:
+        typer.echo("  fix: " + x["hint"], err=True)
+
+
+@app.command()
+def doctor():
+    """Check the config, the database and every configured source, with fix hints."""
+    import asyncio
+
+    from sporemap.core.doctor import check_all
+    from sporemap.db import migrate
+    from sporemap.settings import _cfg_path, env_files
+
+    bad = 0
+    try:
+        s = get_settings()
+    except Exception as e:  # bad yaml or a bad value, nothing else will work either
+        typer.echo("config: FAILED " + str(e), err=True)
+        typer.echo("  fix: correct " + str(_cfg_path()) + " and run sporemap doctor again", err=True)
+        raise typer.Exit(1) from e
+    c = _cfg_path()
+    typer.echo("config: " + str(c.resolve()) + ("" if c.exists() else " (not found, using defaults)"))
+    typer.echo("env files: " + (", ".join(str(f.resolve()) for f in env_files()) or "none"))
+
+    try:
+        s.data_dir.mkdir(parents=True, exist_ok=True)
+        migrate()
+        typer.echo("database: ok (" + str(s.data_dir) + ")")
+    except Exception as e:  # noqa: BLE001  mostly permissions, eg root made the files and the service user cant write them
+        bad += 1
+        typer.echo("database: FAILED " + type(e).__name__ + ": " + str(e), err=True)
+        typer.echo("  fix: make sure " + str(s.data_dir) + " exists and the user running sporemap can write to it", err=True)
+
+    if not s.sources:
+        typer.echo("sources: none configured", err=True)
+        typer.echo("  fix: add some to " + str(c) + " (see sporemap.example.yaml), or try: sporemap scan demo", err=True)
+        raise typer.Exit(1)
+
+    for x in asyncio.run(check_all()):
+        if x["ok"]:
+            typer.echo(x["name"] + ": ok")
+        else:
+            bad += 1
+            _bad(x)
+    if bad:
+        raise typer.Exit(1)
 
 
 @src_app.command("forget")
