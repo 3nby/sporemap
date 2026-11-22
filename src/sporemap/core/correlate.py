@@ -65,14 +65,15 @@ def correlate():
                     if ri == rj:
                         continue
                     a, b = who[ri], who[rj]
-                    if any(src in b and b[src] != ids for src, ids in a.items()):
+                    # xs not ids, ids is the scan id list up top
+                    if any(src in b and b[src] != xs for src, xs in a.items()):
                         # print("not merging " + o.ext_id + " into " + obs[j].ext_id + " on " + k)
                         continue
                     uf.union(ri, rj)
                     r = uf.find(ri)
-                    m = {src: set(ids) for src, ids in a.items()}
-                    for src, ids in b.items():
-                        m.setdefault(src, set()).update(ids)
+                    m = {src: set(xs) for src, xs in a.items()}
+                    for src, xs in b.items():
+                        m.setdefault(src, set()).update(xs)
                     who[r] = m
         groups = {}
         for i in range(len(obs)):
