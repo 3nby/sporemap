@@ -167,10 +167,9 @@ Logs: `journalctl -u sporemap -f` in the CT.
 
 
 # Roadmap
-### V0.1: PoC
+### V0.1: PoC (released, `pip install sporemap`)
 Discovery for Proxmox, Docker, Cloudflare, cloudflared and Caddy, merged into one graph.
 
-Done:
 - One-command Proxmox install (`scripts/install-lxc.sh`) that scans on a schedule
 - `sporemap doctor`, scan retention, and an edge build that `sporemap update` installs
 - Web UI: nested map with bridge lanes, inspector with traffic paths, search and filters, pins
@@ -178,9 +177,6 @@ Done:
 - One admin password for the web UI and API
 - CI checks for Python and the web UI, and the map layout running in a web worker
 - Install and usage docs
-
-Left:
-- Tag v0.1.0 and publish to PyPI
 
 ### V0.2: Network Additions
 - LAN scan + fingerprinting
