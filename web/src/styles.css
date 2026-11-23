@@ -22,15 +22,44 @@ html, body, #root { height: 100%; margin: 0; }
 body { font-family: system-ui, sans-serif; font-size: 14px; color: var(--ink); background: var(--bg); }
 
 .app { display: flex; flex-direction: column; height: 100%; }
-header { display: flex; align-items: center; gap: 16px; padding: 8px 14px; background: var(--surface); border-bottom: 1px solid var(--line); flex-wrap: wrap; }
-header b { color: var(--bark); letter-spacing: .02em; }
-header label { display: flex; align-items: center; gap: 4px; }
-header input { accent-color: var(--moss); }
-header button { background: var(--surface-2); border: 1px solid var(--line); border-radius: 6px; padding: 3px 10px; color: var(--ink); cursor: pointer; }
-header button:hover { border-color: var(--bark); }
+/* toolbar: one line, always. pieces shrink instead of wrapping */
+header { display: flex; align-items: center; gap: 12px; padding: 7px 12px; background: var(--surface); border-bottom: 1px solid var(--line); flex-wrap: nowrap; min-width: 0; position: relative; z-index: 30; }
+header .brand { color: var(--bark); letter-spacing: .02em; flex-shrink: 0; }
+header input[type=checkbox] { accent-color: var(--moss); }
+header button { background: var(--surface-2); border: 1px solid var(--line); border-radius: 6px; padding: 3px 10px; color: var(--ink); cursor: pointer; font-size: 13px; white-space: nowrap; }
+header button:hover:not(:disabled) { border-color: var(--bark); }
+header button:disabled { opacity: .6; cursor: default; }
 .muted { color: var(--muted); font-size: 12px; }
-.legend { display: flex; gap: 10px; font-size: 12px; color: var(--muted); margin-left: auto; }
-.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; }
+
+.search { position: relative; flex: 0 1 230px; min-width: 110px; }
+.search input { width: 100%; padding: 5px 10px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface-2); color: var(--ink); font-size: 13px; }
+.search input:focus { outline: 2px solid var(--lime); outline-offset: 0; border-color: var(--bark); background: var(--surface); }
+.hits { position: absolute; top: calc(100% + 4px); left: 0; width: max(100%, 300px); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 8px 22px rgba(46, 42, 35, .16); padding: 4px; }
+.hits button { display: flex; align-items: center; gap: 8px; width: 100%; border: 0; background: none; padding: 6px 8px; border-radius: 5px; text-align: left; }
+.hits button.on { background: var(--surface-2); }
+.hits i { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+.hits .n { font-weight: 600; overflow: hidden; text-overflow: ellipsis; }
+.hits .w { margin-left: auto; color: var(--muted); font-size: 11px; overflow: hidden; text-overflow: ellipsis; max-width: 45%; }
+.hits .none { padding: 6px 8px; color: var(--muted); font-size: 12px; }
+
+.kinds { display: flex; gap: 4px; flex: 1 1 auto; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.kchip { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; padding: 2px 8px; border-radius: 12px; }
+header .kchip { background: transparent; border-color: transparent; }
+header .kchip:hover { border-color: var(--line); }
+.kchip i { width: 9px; height: 9px; border-radius: 2px; }
+.kchip.off { color: var(--muted); text-decoration: line-through; }
+.kchip.off i { opacity: .3; }
+
+.status { display: flex; align-items: center; gap: 8px; flex: 0 1 auto; min-width: 0; font-size: 12px; color: var(--muted); }
+.status .txt { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.status .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--willow); flex-shrink: 0; }
+.status .dot.busy { background: var(--clay); animation: pulse 1s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: .3; } }
+
+.more { position: relative; flex-shrink: 0; }
+header .dots { padding: 2px 9px; font-size: 16px; line-height: 1.1; }
+.menu { position: absolute; right: 0; top: calc(100% + 4px); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 8px 22px rgba(46, 42, 35, .16); padding: 8px 10px; display: flex; flex-direction: column; gap: 7px; min-width: 220px; font-size: 13px; }
+.menu label { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
 .err { background: #F6E3D3; color: #8A3B12; padding: 8px 14px; }
 
 main { flex: 1; position: relative; display: flex; min-height: 0; }
@@ -116,6 +145,21 @@ main > .react-flow { flex: 1; background: var(--bg); }
 .raw { margin-top: 16px; font-size: 12px; color: var(--muted); }
 .raw summary { cursor: pointer; }
 .raw pre { background: var(--surface-2); border: 1px solid var(--line); padding: 10px; border-radius: 6px; font-size: 11px; overflow: auto; color: var(--ink); }
+
+/* narrow windows: chips go dots-only, status drops its words, and the inspector floats over
+   the map instead of squeezing it */
+@media (max-width: 1100px) {
+  .kchip span { display: none; }
+  .kchip { padding: 4px 6px; }
+}
+@media (max-width: 900px) {
+  .insp { position: absolute; right: 0; top: 0; bottom: 0; z-index: 20; box-shadow: -8px 0 24px rgba(46, 42, 35, .14); width: min(340px, 92vw); }
+  .react-flow__minimap { display: none; }
+  .status .txt { display: none; }
+}
+@media (max-width: 560px) {
+  header .brand { display: none; }
+}
 
 /* hover peek card */
 .hover { position: fixed; z-index: 50; width: 250px; pointer-events: none; background: var(--surface); border: 1px solid var(--line); border-left: 4px solid; border-radius: 7px; padding: 8px 10px; box-shadow: 0 6px 18px rgba(46, 42, 35, .14); }

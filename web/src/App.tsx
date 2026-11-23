@@ -3,16 +3,37 @@ import {
   applyNodeChanges, Background, Controls, MarkerType, MiniMap, ReactFlow,
   type Edge, type Node, type ReactFlowInstance,
 } from '@xyflow/react'
-import { getGraph, type GNode, type Graph } from './api'
+import { getGraph, getSchedule, scanAll, type GNode, type Graph, type Sched } from './api'
 import { index } from './facts'
 import { HoverCard } from './HoverCard'
 import { Inspector } from './Inspector'
 import { H, H_CHIPS, TOP, TOP_CHIPS, TOP_LANE, W, layout, type Box } from './layout'
 import { BoxNode, INK, KIND_COLOR, LaneNode, SporeNode, type SporeData } from './SporeNode'
+import { Toolbar } from './Toolbar'
 import { trace } from './trace'
 import { buildView, type View } from './view'
 
 const nodeTypes = { spore: SporeNode, box: BoxNode, lane: LaneNode }
+
+// kind chips go in the order traffic flows, internet first
+const ORDER = ['endpoint', 'external', 'app', 'host', 'workload', 'container', 'network', 'storage']
+
+// hidden kinds are a per-browser nicety, so storage failing (private window etc) is fine
+function loadHide(): Set<string> {
+  try {
+    return new Set(JSON.parse(localStorage.getItem('sporemap.hide') || '[]') as string[])
+  } catch {
+    return new Set()
+  }
+}
+
+function saveHide(h: Set<string>) {
+  try {
+    localStorage.setItem('sporemap.hide', JSON.stringify(Array.from(h)))
+  } catch {
+    // nowhere to keep it, it just resets next visit
+  }
+}
 
 // view -> nested boxes -> elk -> react flow nodes
 async function place(v: View): Promise<Node<SporeData>[]> {
@@ -55,28 +76,83 @@ export function App() {
   const [stale, setStale] = useState(false)
   const [infra, setInfra] = useState(false)
   const [err, setErr] = useState('')
-  const [busy, setBusy] = useState(false)
   const [sel, setSel] = useState<GNode | null>(null)
+  const [hide, setHide] = useState<Set<string>>(loadHide)
+  const [sched, setSched] = useState<Sched | null>(null)
+  const [scanning, setScanning] = useState(false)
   const [hover, setHover] = useState('') // edge under the mouse
   const [hov, setHov] = useState<{ g: GNode; x: number; y: number } | null>(null) // peek card
   const [rf, setRf] = useState<ReactFlowInstance<Node<SporeData>, Edge> | null>(null)
 
   const load = useCallback(async () => {
-    setBusy(true)
     setErr('')
     try {
       setGraph(await getGraph(stale))
     } catch (e) {
       setErr(String(e))
     }
-    setBusy(false)
   }, [stale])
 
   useEffect(() => {
     load()
   }, [load])
 
-  const view = useMemo(() => (graph ? buildView(graph, infra) : null), [graph, infra])
+  // after a reload, point the selection at the fresh copy of the same thing (or drop it if its gone)
+  useEffect(() => {
+    if (!graph) return
+    setSel((s) => (s && s.id >= 0 ? graph.nodes.find((n) => n.id === s.id) || null : s))
+  }, [graph])
+
+  // watch the schedule. when a scan finishes (newest last_run moves), reload the map
+  const lastRun = useRef('')
+  useEffect(() => {
+    let gone = false
+    const poll = async () => {
+      const s = await getSchedule().catch(() => null)
+      if (gone || !s) return
+      setSched(s)
+      const newest = s.sources.map((x) => x.last_run || '').sort().pop() || ''
+      if (lastRun.current && newest !== lastRun.current && !s.running.length) load()
+      if (!s.running.length) lastRun.current = newest
+    }
+    poll()
+    const t = window.setInterval(poll, 15000)
+    return () => {
+      gone = true
+      window.clearInterval(t)
+    }
+  }, [load])
+
+  const scanNow = async () => {
+    setScanning(true)
+    setErr('')
+    try {
+      const res = await scanAll()
+      const bad = res.filter((r) => r.error)
+      if (bad.length) setErr('scan problems: ' + bad.map((r) => r.name + ': ' + r.error).join('; '))
+    } catch (e) {
+      setErr(String(e))
+    }
+    setScanning(false)
+    await load()
+    const s = await getSchedule().catch(() => null)
+    if (s) {
+      setSched(s)
+      lastRun.current = s.sources.map((x) => x.last_run || '').sort().pop() || ''
+    }
+  }
+
+  const toggleKind = (k: string) => {
+    setHide((h) => {
+      const n = new Set(h)
+      if (n.has(k)) n.delete(k)
+      else n.add(k)
+      saveHide(n)
+      return n
+    })
+  }
+
+  const view = useMemo(() => (graph ? buildView(graph, infra, hide) : null), [graph, infra, hide])
 
   useEffect(() => {
     if (!view) return
@@ -167,26 +243,34 @@ export function App() {
     setHov(null)
   }
 
-  const kinds = useMemo(() => Array.from(new Set(nodes.map((n) => n.data.g.kind))).filter((k) => k !== 'lane').sort(), [nodes])
+  // from the whole graph, not the drawn cards, so a hidden kind keeps its chip to turn it back on
+  const kinds = useMemo(() => {
+    if (!graph) return []
+    const ks = new Set(graph.nodes.map((n) => n.kind))
+    if (!infra) ['network', 'storage'].forEach((k) => ks.delete(k)) // those are lanes + chips then
+    return ORDER.filter((k) => ks.has(k)).concat(Array.from(ks).filter((k) => !ORDER.includes(k)).sort())
+  }, [graph, infra])
+
+  const searchable = useMemo(() => (view ? view.nodes.filter((n) => n.id >= 0 && drawn.has(n.id)) : []), [view, drawn])
 
   return (
     <div className="app">
-      <header>
-        <b>Sporemap</b>
-        <span className="muted">{(graph ? graph.nodes.length : 0) + ' things, ' + edges.length + ' links shown'}</span>
-        <label>
-          <input type="checkbox" checked={infra} onChange={(e) => setInfra(e.target.checked)} /> bridges + storage as nodes
-        </label>
-        <label>
-          <input type="checkbox" checked={stale} onChange={(e) => setStale(e.target.checked)} /> show stale
-        </label>
-        <button onClick={load} disabled={busy}>{busy ? 'loading...' : 'reload'}</button>
-        <span className="legend">
-          {kinds.map((k) => (
-            <span key={k}><i style={{ background: KIND_COLOR[k] || '#999' }} />{k}</span>
-          ))}
-        </span>
-      </header>
+      <Toolbar
+        nodes={searchable}
+        kinds={kinds}
+        hide={hide}
+        onToggleKind={toggleKind}
+        onPick={jump}
+        sched={sched}
+        scanning={scanning}
+        onScan={scanNow}
+        infra={infra}
+        setInfra={setInfra}
+        stale={stale}
+        setStale={setStale}
+        onReload={load}
+        counts={(graph ? graph.nodes.length : 0) + ' things, ' + edges.length + ' links shown'}
+      />
       {err && <div className="err">{err}</div>}
       <main>
         <ReactFlow

@@ -21,6 +21,14 @@ export function ago(iso: string): string {
   return Math.round(s / 86400) + ' days ago'
 }
 
+export function until(iso: string): string {
+  const s = (new Date(iso).getTime() - Date.now()) / 1000
+  if (!isFinite(s)) return ''
+  if (s < 60) return 'any second'
+  if (s < 3600) return 'in ' + Math.round(s / 60) + ' min'
+  return 'in ' + Math.round(s / 3600) + ' h'
+}
+
 export function day(iso: string): string {
   const d = new Date(iso)
   return isNaN(d.getTime()) ? '' : d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })

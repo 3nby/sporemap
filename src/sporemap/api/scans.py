@@ -3,11 +3,12 @@ import asyncio
 from fastapi import APIRouter, HTTPException, Request
 from sqlmodel import Session, select
 
-from sporemap.api.schemas import ScanIn, ScanOut, ScheduleOut
+from sporemap.api.schemas import ScanIn, ScanOut, ScanResult, ScheduleOut
 from sporemap.core.correlate import correlate
-from sporemap.core.scans import run_scan, scan_lock
+from sporemap.core.scans import run_scan, scan_all, scan_lock
 from sporemap.db import get_engine
 from sporemap.db.models import Scan
+from sporemap.settings import get_settings
 from sporemap.sources import load_sources
 from sporemap.sources.config import SourceConfigError, build_config
 
@@ -29,6 +30,24 @@ async def start_scan(body: ScanIn):
         if sc.status == "ok":
             await asyncio.to_thread(correlate)  # sync db work, keep it off the event loop
     return ScanOut(**sc.model_dump())
+
+
+@r.post("/scans/all", response_model=list[ScanResult])
+async def scan_everything(req: Request):
+    """Scan every source in sporemap.yaml now, then rebuild the graph once. Waits until done.
+
+    One source failing never stops the rest, its error is in its result.
+    """
+    sch = req.app.state.sched
+    async with scan_lock():  # never at the same time as the scheduler
+        sch.running = sorted(get_settings().sources)  # so /schedule shows "scanning" for these too
+        try:
+            res, _ = await scan_all()
+        finally:
+            sch.running = []
+    # print([(x["name"], x["error"]) for x in res])
+    return [ScanResult(name=x["name"], scan=ScanOut(**x["scan"].model_dump()) if x["scan"] else None,
+                       error=x["error"]) for x in res]
 
 
 @r.get("/schedule", response_model=ScheduleOut)

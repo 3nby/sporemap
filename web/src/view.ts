@@ -18,9 +18,10 @@ const NEST = new Set(['hosts', 'runs'])
 const CHIP = new Set(['member_of', 'mounts'])
 const INFRA = new Set(['network', 'storage'])
 
-export function buildView(g: Graph, infra: boolean): View {
+// hide = kinds switched off in the toolbar
+export function buildView(g: Graph, infra: boolean, hide: Set<string> = new Set()): View {
   const byId = new Map(g.nodes.map((n) => [n.id, n]))
-  const nodes = g.nodes.filter((n) => infra || !INFRA.has(n.kind))
+  const nodes = g.nodes.filter((n) => (infra || !INFRA.has(n.kind)) && !hide.has(n.kind))
   const shown = new Set(nodes.map((n) => n.id))
 
   const parent = new Map<number, number>()
@@ -28,12 +29,24 @@ export function buildView(g: Graph, infra: boolean): View {
   const chips = new Map<number, Chip[]>()
   const edges: GEdge[] = []
 
+  // who sits inside what, over everything, then each shown thing goes in the nearest shown
+  // box above it (hide CTs and their containers sit straight in the host)
+  const raw = new Map<number, number>()
   for (const e of g.edges) {
-    if (!shown.has(e.src)) continue
-    if (NEST.has(e.kind) && shown.has(e.dst) && !parent.has(e.dst) && !_loops(parent, e.src, e.dst)) {
-      parent.set(e.dst, e.src)
-      kids.set(e.src, (kids.get(e.src) || []).concat(e.dst))
-    } else if (CHIP.has(e.kind) && !infra) {
+    if (NEST.has(e.kind) && !raw.has(e.dst) && !_loops(raw, e.src, e.dst)) raw.set(e.dst, e.src)
+  }
+  for (const n of nodes) {
+    let p = raw.get(n.id)
+    while (p !== undefined && !shown.has(p)) p = raw.get(p)
+    if (p !== undefined) {
+      parent.set(n.id, p)
+      kids.set(p, (kids.get(p) || []).concat(n.id))
+    }
+  }
+
+  for (const e of g.edges) {
+    if (NEST.has(e.kind) || !shown.has(e.src)) continue
+    if (CHIP.has(e.kind) && !infra) {
       const d = byId.get(e.dst)
       if (d) chips.set(e.src, (chips.get(e.src) || []).concat({ kind: d.kind, name: d.name }))
     } else if (shown.has(e.src) && shown.has(e.dst)) {

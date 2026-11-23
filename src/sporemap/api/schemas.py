@@ -63,3 +63,9 @@ class ScanOut(BaseModel):
     error: str | None
     started_at: datetime
     finished_at: datetime | None
+
+
+class ScanResult(BaseModel):
+    name: str
+    scan: ScanOut | None  # None when it never got to scan (bad config, not installed)
+    error: str | None

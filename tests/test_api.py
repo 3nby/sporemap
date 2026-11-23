@@ -50,6 +50,23 @@ def test_node_detail_only_counts_latest_scan(c):
     assert len(c.get("/api/v1/nodes/" + str(nid)).json()["seen_by"]) == 1
 
 
+def test_scan_all_runs_every_configured_source(monkeypatch, tmp_path):
+    from sporemap.settings import get_settings
+
+    p = tmp_path / "cfg.yaml"
+    p.write_text("sources:\n  demo:\n  nosuch:\n")
+    monkeypatch.setenv("SPOREMAP_CONFIG", str(p))
+    get_settings.cache_clear()
+    c = TestClient(create_app())
+    res = c.post("/api/v1/scans/all")
+    assert res.status_code == 200
+    by = {x["name"]: x for x in res.json()}
+    assert by["demo"]["scan"]["status"] == "ok" and by["demo"]["error"] is None
+    assert by["nosuch"]["scan"] is None and by["nosuch"]["error"] == "not installed"  # one bad source doesnt stop the rest
+    assert len(c.get("/api/v1/graph").json()["nodes"]) == 7
+    assert c.get("/api/v1/schedule").json()["running"] == []  # cleared again after
+
+
 def test_node_detail_404(c):
     assert c.get("/api/v1/nodes/999").status_code == 404
 
