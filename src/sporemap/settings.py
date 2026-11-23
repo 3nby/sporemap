@@ -67,12 +67,29 @@ class Settings(BaseSettings):
     scan_timeout: float = 120  # seconds per source run
     schedule: bool = True  # serve scans on its own. serve --no-schedule turns it off
     scan_every: float | None = 900  # default interval for every source, None = only sources with their own
+    keep_scans: int | None = 50  # newest scans kept per source, None = keep everything
     sources: dict[str, dict] = {}  # per-source settings from sporemap.yaml, NO secrets in here
 
     @field_validator("scan_every", mode="before")
     @classmethod
     def _every(cls, v):
         return parse_every(v)
+
+    @field_validator("keep_scans", mode="before")
+    @classmethod
+    def _keep(cls, v):
+        # 0, off or null = never prune
+        if v is None or v is False or str(v).strip().lower() in ("", "0", "off", "never", "no", "false", "none"):
+            return None
+        if v is True:
+            raise ValueError("keep_scans needs a number like 50, or off")
+        try:
+            n = int(v)
+        except ValueError:
+            raise ValueError("cant read " + repr(v) + " as a scan count, try 50 or off") from None
+        if n < 1:
+            raise ValueError("keep_scans cant be negative, use off to keep everything")
+        return n
 
     @field_validator("sources", mode="before")
     @classmethod

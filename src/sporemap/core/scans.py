@@ -156,3 +156,55 @@ def forget(name):
     # print("forgot", name, sids, gone)
     return {"scans": len(sids), "observations": n_obs, "removed_nodes": len(gone),
             "nodes": g["nodes"], "edges": g["edges"]}
+
+
+def prune(keep=None):
+    """Delete old scans so the db doesnt grow forever. Returns counts.
+
+    Per source it keeps the newest keep scans (keep_scans in sporemap.yaml) plus the
+    latest ok one, which is what the correlator and the node api read, even if a pile
+    of failed scans came after it.
+
+    Older scans lose their raw links and observations, except the newest sighting of
+    each thing (source + ext_id). The correlator uses those to hand a node its old id
+    back when something comes back after being gone a while, so overrides keep working.
+    A scan only gets deleted once nothing of it is left.
+    """
+    from sqlmodel import col, delete, func, select
+
+    n = get_settings().keep_scans if keep is None else keep
+    out = {"scans": 0, "observations": 0, "links": 0}
+    if not n:
+        return out  # keep everything
+    with Session(get_engine()) as s:
+        keep_ids = set()
+        for src in s.exec(select(Scan.source).distinct()).all():
+            keep_ids.update(s.exec(select(Scan.id).where(Scan.source == src).order_by(Scan.id.desc()).limit(n)).all())
+        keep_ids.update(s.exec(select(func.max(Scan.id)).where(Scan.status == "ok").group_by(Scan.source)).all())
+        keep_ids = sorted(keep_ids)
+        # newest row of each thing that got a node, sqlite runs this once up front
+        last = (select(func.max(Observation.id)).where(col(Observation.node_id).is_not(None))
+                .group_by(Observation.source, Observation.ext_id))
+        out["links"] = s.exec(delete(RawLink).where(col(RawLink.scan_id).not_in(keep_ids))).rowcount
+        out["observations"] = s.exec(delete(Observation).where(col(Observation.scan_id).not_in(keep_ids),
+                                                               col(Observation.id).not_in(last))).rowcount
+        used = select(Observation.scan_id).distinct()
+        out["scans"] = s.exec(delete(Scan).where(col(Scan.id).not_in(keep_ids), col(Scan.id).not_in(used))).rowcount
+        s.commit()
+    # print("pruned", out)
+    return out
+
+
+def vacuum():
+    """Give the space from deleted rows back to the os.
+
+    Not needed after every prune: sqlite reuses freed pages for new rows, so with
+    retention on the file just stops growing. This is for shrinking it once, eg after
+    the first prune of a db that kept everything. Rewrites the whole file, so its slow-ish
+    and wants the db to itself for a moment.
+    """
+    from sqlalchemy import text
+
+    with get_engine().connect().execution_options(isolation_level="AUTOCOMMIT") as c:
+        c.execute(text("VACUUM"))
+        c.execute(text("PRAGMA wal_checkpoint(TRUNCATE)"))  # in wal mode the file only shrinks at a checkpoint

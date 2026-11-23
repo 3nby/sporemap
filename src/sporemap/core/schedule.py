@@ -5,7 +5,7 @@ from datetime import UTC, timedelta
 from sqlalchemy import func
 from sqlmodel import Session, select
 
-from sporemap.core.scans import scan_all, scan_lock
+from sporemap.core.scans import prune, scan_all, scan_lock
 from sporemap.db import get_engine
 from sporemap.db.models import Scan, now
 from sporemap.settings import get_settings
@@ -93,6 +93,10 @@ class Scheduler:
                 t = now()
                 for n in d:
                     self.tried[n] = t
+            try:
+                await asyncio.to_thread(prune)  # still holding the lock, so no scan is half written
+            except Exception:
+                log.exception("pruning old scans failed")
         for x in res:
             if x["error"]:
                 log.warning("scheduled scan of " + x["name"] + " failed: " + x["error"])

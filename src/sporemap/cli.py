@@ -191,6 +191,7 @@ def scan(source: str = typer.Argument(None, help="Source name, see: sporemap sou
                 typer.echo(x["name"] + ": FAILED " + str(x["error"]), err=True)
         if g:
             typer.echo("graph: " + str(g["nodes"]) + " nodes, " + str(g["edges"]) + " edges")
+        _prune()
         if bad:
             raise typer.Exit(1)
         return
@@ -210,10 +211,57 @@ def scan(source: str = typer.Argument(None, help="Source name, see: sporemap sou
     sc = asyncio.run(run_scan(source, cfg=cfg, sources=srcs))
     if sc.status != "ok":
         typer.echo("scan " + str(sc.id) + " failed: " + str(sc.error), err=True)
+        _prune()
         raise typer.Exit(1)
     typer.echo("scan " + str(sc.id) + " ok: " + _counts(sc.id))
     g = correlate()
     typer.echo("graph: " + str(g["nodes"]) + " nodes, " + str(g["edges"]) + " edges")
+    _prune()
+
+
+def _said(r):
+    return str(r["scans"]) + " scans, " + str(r["observations"]) + " observations, " + str(r["links"]) + " links"
+
+
+def _prune():
+    # quiet unless it actually deleted something
+    from sporemap.core.scans import prune
+
+    r = prune()
+    if r["scans"] or r["observations"] or r["links"]:
+        typer.echo("pruned " + _said(r))
+
+
+@app.command("prune")
+def prune_cmd(keep: int = typer.Option(None, help="Scans to keep per source. Defaults to keep_scans."),
+              vacuum: bool = typer.Option(True, "--vacuum/--no-vacuum",
+                                          help="Shrink the db file afterwards (rewrites it, takes a moment).")):
+    """Delete old scans now. The latest good scan of every source always stays."""
+    import os
+
+    from sporemap.core.scans import prune
+    from sporemap.core.scans import vacuum as vac
+    from sporemap.db import get_engine, migrate
+
+    if keep is not None and keep < 1:
+        typer.echo("--keep needs to be at least 1", err=True)
+        raise typer.Exit(1)
+    migrate()
+    if keep is None and get_settings().keep_scans is None:
+        typer.echo("keep_scans is off, nothing to prune. pass --keep to prune anyway")
+        return
+    r = prune(keep)
+    typer.echo("pruned " + _said(r))
+    if not vacuum:
+        return
+    db = get_engine().url.database
+    was = os.path.getsize(db)
+    try:
+        vac()
+    except Exception as e:  # noqa: BLE001  usually serve is busy writing, the space still gets reused
+        typer.echo("vacuum skipped: " + str(e), err=True)
+        return
+    typer.echo("db file: " + str(was // 1024) + " KB -> " + str(os.path.getsize(db) // 1024) + " KB")
 
 
 @app.command()

@@ -6,6 +6,9 @@
 # scan_timeout: 120
 # scan_every: 15m                  # serve scans every source this often (30s, 15m, 2h, 1d, or off)
 #                                  # any source can set its own scan_every, or scan_every: off
+# keep_scans: 50                   # newest scans kept per source, older ones get pruned after each round
+#                                  # the latest good scan of a source always stays. off = keep everything
+#                                  # shrink the db file once with: sporemap prune
 
 sources:
   # demo: {}                       # fake lab to try sporemap without one: sporemap scan demo
