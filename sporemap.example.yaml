@@ -20,7 +20,7 @@ sources:
   #   scan_every: 5m              # optional, overrides the global scan_every
   #   # secret goes in .env as SPOREMAP_PROXMOX_TOKEN_SECRET
   # caddy:
-  #   url: http://192.168.1.70:2020   # read-only proxy of the admin api, see docs
+  #   url: http://192.168.1.70:2020   # read-only proxy of the admin api, see "Caddy" in the README
   #   host_ip: 192.168.1.70           # the box caddy runs on
   # cloudflare:
   #   zones: [example.com]            # optional, default is every zone the token sees
@@ -28,7 +28,7 @@ sources:
   #   # needs: Zone:Zone:Read, Zone:DNS:Read, Account:Cloudflare Tunnel:Read
   # cloudflared:                      # locally managed tunnel, read over ssh
   #   host: 192.168.1.10
-  #   key_path: ~/.ssh/sporemap       # key with a forced "cat config.yml" command, see docs
+  #   key_path: ~/.ssh/sporemap       # key with a forced "cat config.yml" command, see "cloudflared" in the README
   #   host_ip: 192.168.1.10           # lan ip of that box, for localhost services
   # docker:                           # one entry per machine running docker
   #   key_path: ~/.ssh/sporemap       # for hosts reached over ssh (scripts/setup-docker-host.sh)
