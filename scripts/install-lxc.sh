@@ -296,6 +296,17 @@ for f in sources.yaml sporemap.env known_hosts; do
 done
 px "$ID" -- /opt/sporemap/lxc-setup.sh configure /root/sporemap-cfg
 
+# --- web UI password ------------------------------------------------------------
+echo
+if px "$ID" -- grep -q '^SPOREMAP_PASSWORD_HASH=' /etc/sporemap/sporemap.env; then
+  say "the web UI already has a password (change it: pct exec $ID -- sporemap set-password)"
+elif ! yes_no "set a password for the web UI? (no = anyone on the LAN can see your whole lab)"; then
+  warn "no password. set one later with: pct exec $ID -- /usr/local/bin/sporemap set-password"
+else
+  # not px: this one needs the terminal, it asks for the password twice
+  pct exec "$ID" -- /usr/local/bin/sporemap set-password </dev/tty || warn "setting the password failed, try again with: pct exec $ID -- /usr/local/bin/sporemap set-password"
+fi
+
 echo
 say "checking it"
 px "$ID" -- /usr/local/bin/sporemap doctor || warn "doctor found problems, the fix: lines above say what to do"

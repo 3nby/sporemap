@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { GNode, Sched } from './api'
+import type { AuthStatus, GNode, Sched } from './api'
 import { ago, str, until } from './fmt'
 import { KIND_COLOR } from './SporeNode'
 import { kindLabel } from './view'
@@ -166,6 +166,8 @@ type Props = {
   onReload: () => void
   pinCount: number
   onUnpinAll: () => void
+  auth: AuthStatus
+  onSignOut: () => void
   counts: string
 }
 
@@ -180,6 +182,11 @@ export function Toolbar(p: Props) {
       </nav>
       <Search nodes={p.nodes} onPick={p.onPick} />
       {p.kinds.length > 0 ? <Kinds kinds={p.kinds} hide={p.hide} onToggle={p.onToggleKind} /> : <div className="kinds" />}
+      {!p.auth.enabled && p.auth.exposed && (
+        <span className="nopw" title="Anyone who can reach this sees your whole lab. On the server run: sporemap set-password">
+          <i>!</i>no password
+        </span>
+      )}
       <Status sched={p.sched} scanning={p.scanning} onScan={p.onScan} />
       <div className="more">
         <button className="dots" onClick={() => setMenu((m) => !m)} title="view options">{'⋯'}</button>
@@ -188,6 +195,7 @@ export function Toolbar(p: Props) {
             <label><input type="checkbox" checked={p.infra} onChange={(e) => p.setInfra(e.target.checked)} /> bridges + storage as nodes</label>
             <label><input type="checkbox" checked={p.stale} onChange={(e) => p.setStale(e.target.checked)} /> show stale</label>
             <button onClick={() => { p.onReload(); setMenu(false) }}>reload map</button>
+            {p.auth.enabled && <button onClick={p.onSignOut}>sign out</button>}
             {p.pinCount > 0 && (
               <button onClick={() => {
                 if (window.confirm('Unpin all ' + p.pinCount + ' pinned things and go back to the automatic layout?')) p.onUnpinAll()

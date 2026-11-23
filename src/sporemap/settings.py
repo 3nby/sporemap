@@ -3,7 +3,7 @@ from functools import lru_cache
 from pathlib import Path
 
 from platformdirs import user_data_dir
-from pydantic import field_validator
+from pydantic import SecretStr, field_validator
 from pydantic_settings import (
     BaseSettings,
     SettingsConfigDict,
@@ -68,6 +68,7 @@ class Settings(BaseSettings):
     schedule: bool = True  # serve scans on its own. serve --no-schedule turns it off
     scan_every: float | None = 900  # default interval for every source, None = only sources with their own
     keep_scans: int | None = 50  # newest scans kept per source, None = keep everything
+    password_hash: SecretStr | None = None  # from sporemap set-password, lives in sporemap.env. None = no login
     sources: dict[str, dict] = {}  # per-source settings from sporemap.yaml, NO secrets in here
 
     @field_validator("scan_every", mode="before")

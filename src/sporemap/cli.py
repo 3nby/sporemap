@@ -116,6 +116,16 @@ def doctor():
         typer.echo("database: FAILED " + type(e).__name__ + ": " + str(e), err=True)
         typer.echo("  fix: make sure " + str(s.data_dir) + " exists and the user running sporemap can write to it", err=True)
 
+    from sporemap import auth
+    if auth.enabled():
+        typer.echo("login: password set")
+    elif auth.exposed():
+        bad += 1
+        typer.echo("login: FAILED no password, and serve listens on " + s.host + " so anyone who can reach it sees your lab", err=True)
+        typer.echo("  fix: sporemap set-password", err=True)
+    else:
+        typer.echo("login: off (fine, serve only listens on " + s.host + ")")
+
     if not s.sources:
         typer.echo("sources: none configured", err=True)
         typer.echo("  fix: add some to " + str(c) + " (see sporemap.example.yaml), or try: sporemap scan demo", err=True)
@@ -262,6 +272,23 @@ def prune_cmd(keep: int = typer.Option(None, help="Scans to keep per source. Def
         typer.echo("vacuum skipped: " + str(e), err=True)
         return
     typer.echo("db file: " + str(was // 1024) + " KB -> " + str(os.path.getsize(db) // 1024) + " KB")
+
+
+@app.command("set-password")
+def set_password(off: bool = typer.Option(False, "--off", help="Remove the password, so no login (only safe on 127.0.0.1).")):
+    """Set the password for the web UI and API. Only a hash of it is stored."""
+    from sporemap.auth import hash_password, write_hash
+
+    if off:
+        p = write_hash(None)
+        typer.echo("password removed from " + str(p) + ". restart sporemap serve to apply")
+        return
+    pw = typer.prompt("new password", hide_input=True, confirmation_prompt=True)
+    if len(pw) < 8:
+        typer.echo("use at least 8 characters", err=True)
+        raise typer.Exit(1)
+    p = write_hash(hash_password(pw))
+    typer.echo("password saved as a hash in " + str(p) + ". restart sporemap serve to apply (signs everyone out)")
 
 
 @app.command()

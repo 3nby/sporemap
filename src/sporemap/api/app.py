@@ -1,5 +1,6 @@
 import asyncio
 import contextlib
+import logging
 from pathlib import Path
 
 from fastapi import APIRouter, FastAPI
@@ -8,13 +9,14 @@ from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
-from sporemap import __version__
+from sporemap import __version__, auth
 from sporemap.api import graph, overrides, scans
 from sporemap.core.schedule import Scheduler
 from sporemap.db import get_engine, migrate
 from sporemap.settings import get_settings
 
 r = APIRouter(prefix="/api/v1")
+log = logging.getLogger(__name__)
 
 UI = Path(__file__).parent.parent / "ui"  # vite builds web/ into here
 
@@ -62,6 +64,11 @@ def create_app(sources=None):
     a.include_router(graph.r, prefix="/api/v1", tags=["graph"])
     a.include_router(scans.r, prefix="/api/v1", tags=["scans"])
     a.include_router(overrides.r, prefix="/api/v1", tags=["overrides"])
+    a.include_router(auth.r, prefix="/api/v1", tags=["auth"])
+    a.middleware("http")(auth.guard)  # with a password set, /api + /docs need a session
+    if auth.exposed() and not auth.enabled():
+        log.warning("sporemap listens on " + s.host + " with no password, anyone who can reach it sees your lab."
+                    " set one with: sporemap set-password")
     _mount_ui(a, UI)
     # print("app built")
     return a

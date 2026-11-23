@@ -3,7 +3,10 @@ import {
   applyNodeChanges, Background, Controls, MarkerType, MiniMap, ReactFlow,
   type Edge, type Node, type ReactFlowInstance,
 } from '@xyflow/react'
-import { dropPin, getGraph, getPins, getSchedule, scanAll, setPin, type GNode, type Graph, type Pin, type Sched } from './api'
+import {
+  dropPin, getGraph, getPins, getSchedule, logout, scanAll, setPin,
+  type AuthStatus, type GNode, type Graph, type Pin, type Sched,
+} from './api'
 import { index } from './facts'
 import { HoverCard } from './HoverCard'
 import { Inspector } from './Inspector'
@@ -111,7 +114,7 @@ async function place(v: View, pins: Map<number, Pin>): Promise<Node<SporeData>[]
   })
 }
 
-export function App() {
+export function App({ auth }: { auth: AuthStatus }) {
   const [graph, setGraph] = useState<Graph | null>(null)
   const [pins, setPins] = useState<Map<number, Pin>>(new Map())
   const [nodes, setNodes] = useState<Node<SporeData>[]>([])
@@ -378,6 +381,8 @@ export function App() {
         pinCount={pins.size}
         onUnpinAll={() => unpin(null)}
         counts={(graph ? graph.nodes.length : 0) + ' things, ' + edges.length + ' links shown'}
+        auth={auth}
+        onSignOut={() => logout().then(() => window.location.reload())}
       />
       {err && <div className="err">{err}</div>}
       {route === 'overview' ? (

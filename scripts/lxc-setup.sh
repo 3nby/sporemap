@@ -147,6 +147,13 @@ if [ "$1" = update ]; then
   shift
   exec /opt/sporemap/lxc-setup.sh install "$@"
 fi
+# the password hash goes in /etc/sporemap/sporemap.env, which only root can write
+if [ "$1" = set-password ]; then
+  [ "$(id -u)" -eq 0 ] || { echo "run sporemap set-password as root" >&2; exit 1; }
+  SPOREMAP_CONFIG=/etc/sporemap/sporemap.yaml /opt/sporemap/venv/bin/sporemap "$@" || exit $?
+  systemctl try-restart sporemap && echo "restarted sporemap, sign in with the new password"
+  exit 0
+fi
 cd /var/lib/sporemap || exit 1
 export SPOREMAP_CONFIG=/etc/sporemap/sporemap.yaml
 if [ "$(id -u)" -eq 0 ]; then
