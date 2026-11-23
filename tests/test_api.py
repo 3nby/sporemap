@@ -100,3 +100,16 @@ def test_root_serves_built_ui(monkeypatch, tmp_path):
     assert c.get("/assets/app.js").text == "console.log(1)"
     assert c.get("/api/v1/graph").json() == {"nodes": [], "edges": []}  # api still wins
     assert c.get("/api/v1/nope").status_code == 404
+
+
+def test_ui_caching(monkeypatch, tmp_path):
+    # hashed assets cache forever, index.html always revalidates so an update never strands a browser
+    from sporemap.api import app as appmod
+    (tmp_path / "assets").mkdir()
+    (tmp_path / "index.html").write_text("<div id=root></div>")
+    (tmp_path / "assets" / "index-abc123.js").write_text("console.log(1)")
+    monkeypatch.setattr(appmod, "UI", tmp_path)
+    c = TestClient(create_app())
+    assert c.get("/").headers["cache-control"] == "no-cache"
+    assert "immutable" in c.get("/assets/index-abc123.js").headers["cache-control"]
+    assert c.get("/").headers.get("etag")  # so no-cache is a cheap 304 most of the time

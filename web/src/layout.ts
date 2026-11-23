@@ -1,6 +1,9 @@
-import ELK, { type ElkNode } from 'elkjs/lib/elk.bundled.js'
+import ELK, { type ElkNode } from 'elkjs/lib/elk-api.js'
+// the layout engine itself is ~1.5mb. as a worker it loads on its own, off the main bundle,
+// and big layouts dont freeze the page while they run
+import workerUrl from 'elkjs/lib/elk-worker.min.js?url'
 
-const elk = new ELK()
+const elk = new ELK({ workerUrl })
 
 export const W = 190
 export const H = 54

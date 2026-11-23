@@ -21,10 +21,26 @@ jobs:
       - run: ruff check .
       - run: pytest -q
 
+  web:
+    # typecheck + build the map, so a broken UI fails here instead of on someone's CT
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - run: npm run build  # tsc --noEmit, then vite build
+
   edge:
     # every green push to main ships a wheel with the web UI to the rolling "edge"
     # release. the lxc install pulls it with: sporemap update
-    needs: test
+    needs: [test, web]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     permissions:

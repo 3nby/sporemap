@@ -67,10 +67,23 @@ def create_app(sources=None):
     return a
 
 
+class _UiFiles(StaticFiles):
+    # vite puts a hash in every asset name, so those can be cached for good. index.html
+    # cant: a stale copy after sporemap update points at assets that are gone = blank page
+    async def get_response(self, path, scope):
+        res = await super().get_response(path, scope)
+        if res.status_code == 200:
+            if path.replace("\\", "/").startswith("assets/"):  # starlette hands windows paths with backslashes
+                res.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+            else:
+                res.headers["Cache-Control"] = "no-cache"  # always ask, the etag keeps it cheap
+        return res
+
+
 def _mount_ui(a, d):
     # mounted last so /api and /docs win over static files
     if (d / "index.html").exists():
-        a.mount("/", StaticFiles(directory=d, html=True), name="ui")
+        a.mount("/", _UiFiles(directory=d, html=True), name="ui")
         return
 
     @a.get("/", response_class=HTMLResponse, include_in_schema=False)

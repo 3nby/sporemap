@@ -7,8 +7,9 @@ const env = (globalThis as { process?: { env: Record<string, string | undefined>
 // builds straight into the python package so `sporemap serve` can hand it out
 export default defineConfig({
   plugins: [react()],
-  // elk alone is ~1.5mb, fine for a page served from your own box
-  build: { outDir: '../src/sporemap/ui', emptyOutDir: true, chunkSizeWarningLimit: 2500 },
+  // elk runs in a worker (its own file), so the main bundle stays small. the warning
+  // only knows about chunks, so the 1.6mb worker asset doesnt trip it
+  build: { outDir: '../src/sporemap/ui', emptyOutDir: true },
   server: {
     // npm run dev talks to a running `sporemap serve`. point it at the CT for real data:
     //   $env:SPOREMAP_API = 'http://10.17.48.147:8420'; npm run dev
