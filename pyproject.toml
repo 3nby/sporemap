@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "sporemap"
-version = "0.0.1"
+version = "0.1.0"
 description = "Open-source homelab manager that discovers and maps your lab automatically."
 readme = "README.md"
 license = "AGPL-3.0-only"
