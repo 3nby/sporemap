@@ -14,6 +14,8 @@ type Props = {
   canJump: (id: number) => boolean
   onJump: (id: number) => void
   onClose: () => void
+  pinned: boolean
+  onUnpin: () => void
 }
 
 // a name you can click to jump to it on the map (or plain text when its not drawn)
@@ -25,7 +27,7 @@ function Ref({ id, ix, canJump, onJump }: { id: number; ix: Idx; canJump: Props[
   return <button className="ref" onClick={() => onJump(id)} title={kindLabel(n)}>{label}</button>
 }
 
-export function Inspector({ g, ix, view, lit, canJump, onJump, onClose }: Props) {
+export function Inspector({ g, ix, view, lit, canJump, onJump, onClose, pinned, onUnpin }: Props) {
   const [det, setDet] = useState<NodeDetail | null>(null)
 
   useEffect(() => {
@@ -65,6 +67,7 @@ export function Inspector({ g, ix, view, lit, canJump, onJump, onClose }: Props)
       <div className="insp-top">
         <span className="tag" style={{ background: KIND_COLOR[g.kind] }}>{kindLabel(g)}</span>
         {st && <span className={'pill' + (isOff(g) ? ' pill-off' : '')}>{st}</span>}
+        {pinned && <button className="unpin" onClick={onUnpin} title="let the automatic layout place it again">unpin</button>}
         <button className="x" onClick={onClose} title="close (Esc)">{'×'}</button>
       </div>
       <h2>{g.name}</h2>

@@ -163,6 +163,8 @@ type Props = {
   stale: boolean
   setStale: (v: boolean) => void
   onReload: () => void
+  pinCount: number
+  onUnpinAll: () => void
   counts: string
 }
 
@@ -181,6 +183,12 @@ export function Toolbar(p: Props) {
             <label><input type="checkbox" checked={p.infra} onChange={(e) => p.setInfra(e.target.checked)} /> bridges + storage as nodes</label>
             <label><input type="checkbox" checked={p.stale} onChange={(e) => p.setStale(e.target.checked)} /> show stale</label>
             <button onClick={() => { p.onReload(); setMenu(false) }}>reload map</button>
+            {p.pinCount > 0 && (
+              <button onClick={() => {
+                if (window.confirm('Unpin all ' + p.pinCount + ' pinned things and go back to the automatic layout?')) p.onUnpinAll()
+                setMenu(false)
+              }}>{'reset ' + p.pinCount + ' pin' + (p.pinCount > 1 ? 's' : '')}</button>
+            )}
             <div className="muted">{p.counts}</div>
           </div>
         )}

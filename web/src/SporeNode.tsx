@@ -2,7 +2,7 @@ import { Handle, Position, type NodeProps, type Node } from '@xyflow/react'
 import type { GNode } from './api'
 import { isOff, kindLabel, type Chip } from './view'
 
-export type SporeData = { g: GNode; chips: Chip[] }
+export type SporeData = { g: GNode; chips: Chip[]; pinned?: boolean }
 
 // grant's five for the things that should pop, earthy everything else.
 // keep in sync with the :root tokens in styles.css
@@ -46,9 +46,10 @@ function Chips({ chips }: { chips: Chip[] }) {
   )
 }
 
-function Head({ g, chips }: SporeData) {
+function Head({ g, chips, pinned }: SporeData) {
   return (
     <>
+      {pinned && <span className="pin" title="pinned here, unpin it from the side panel" />}
       <div className="kind">{kindLabel(g) + (isOff(g) ? ' · ' + String(g.attrs.status ?? g.attrs.state ?? 'off') : '')}</div>
       <div className="name" title={g.name}>{g.name}</div>
       <Chips chips={chips} />

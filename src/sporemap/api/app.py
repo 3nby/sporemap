@@ -9,7 +9,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
 from sporemap import __version__
-from sporemap.api import graph, scans
+from sporemap.api import graph, overrides, scans
 from sporemap.core.schedule import Scheduler
 from sporemap.db import get_engine, migrate
 from sporemap.settings import get_settings
@@ -61,6 +61,7 @@ def create_app(sources=None):
     a.include_router(r)
     a.include_router(graph.r, prefix="/api/v1", tags=["graph"])
     a.include_router(scans.r, prefix="/api/v1", tags=["scans"])
+    a.include_router(overrides.r, prefix="/api/v1", tags=["overrides"])
     _mount_ui(a, UI)
     # print("app built")
     return a

@@ -3,7 +3,7 @@ import {
   applyNodeChanges, Background, Controls, MarkerType, MiniMap, ReactFlow,
   type Edge, type Node, type ReactFlowInstance,
 } from '@xyflow/react'
-import { getGraph, getSchedule, scanAll, type GNode, type Graph, type Sched } from './api'
+import { dropPin, getGraph, getPins, getSchedule, scanAll, setPin, type GNode, type Graph, type Pin, type Sched } from './api'
 import { index } from './facts'
 import { HoverCard } from './HoverCard'
 import { Inspector } from './Inspector'
@@ -35,8 +35,20 @@ function saveHide(h: Set<string>) {
   }
 }
 
-// view -> nested boxes -> elk -> react flow nodes
-async function place(v: View): Promise<Node<SporeData>[]> {
+// which box a thing sits in, as a string that survives reloads. lanes have made-up ids
+// that can shift, so they go by host + bridge names instead
+export function boxRef(id: number, v: View): string {
+  const p = v.parent.get(id)
+  if (p === undefined) return ''
+  if (p < 0) {
+    const lane = v.nodes.find((n) => n.id === p)
+    return 'lane:' + (v.parent.get(p) ?? '') + ':' + (lane ? lane.name : '')
+  }
+  return String(p)
+}
+
+// view -> nested boxes -> elk -> pins on top -> react flow nodes
+async function place(v: View, pins: Map<number, Pin>): Promise<Node<SporeData>[]> {
   const byId = new Map(v.nodes.map((n) => [n.id, n]))
   const box = (id: number): Box => {
     const k = v.kids.get(id) || []
@@ -47,6 +59,27 @@ async function place(v: View): Promise<Node<SporeData>[]> {
   const roots = v.nodes.filter((n) => !v.parent.has(n.id)).map((n) => box(n.id))
   const links = v.edges.map((e) => ({ id: 'e' + e.id, source: String(e.src), target: String(e.dst) }))
   const placed = await layout(roots, links)
+
+  // pinned things go where you left them, as long as theyre still in the same box
+  const pinned = new Set<string>()
+  for (const p of placed) {
+    const pin = pins.get(Number(p.id))
+    if (pin && pin.in === boxRef(Number(p.id), v)) {
+      p.x = pin.x
+      p.y = pin.y
+      pinned.add(p.id)
+    }
+  }
+  // then every box grows to hold its kids. placed lists parents first, so walking it
+  // backwards does the innermost boxes first and their growth carries up
+  const byP = new Map(placed.map((p) => [p.id, p]))
+  for (const p of placed.slice().reverse()) {
+    const par = p.parent ? byP.get(p.parent) : undefined
+    if (!par) continue
+    par.w = Math.max(par.w, p.x + p.w + 14)
+    par.h = Math.max(par.h, p.y + p.h + 14)
+  }
+
   return placed.map((p) => {
     const g = byId.get(Number(p.id)) as GNode
     const group = (v.kids.get(g.id) || []).length > 0
@@ -54,9 +87,10 @@ async function place(v: View): Promise<Node<SporeData>[]> {
       id: p.id,
       type: g.kind === 'lane' ? 'lane' : group ? 'box' : 'spore',
       selectable: g.kind !== 'lane', // its just a backdrop
-      // boxes cover most of the canvas, so dragging inside one has to pan the map, not
-      // carry the whole host off. cards still drag (until pins are saved its just for a peek)
-      draggable: !group,
+      // boxes cover most of the canvas, so dragging inside one has to pan the map. they
+      // only move when you grab their header
+      draggable: g.kind !== 'lane',
+      dragHandle: group ? '.head' : undefined,
       // boxes + lanes under the lines (zIndex 1000), cards over them, so lines never cross a card's text
       zIndex: group ? 0 : 2000,
       position: { x: p.x, y: p.y },
@@ -65,13 +99,14 @@ async function place(v: View): Promise<Node<SporeData>[]> {
       width: p.w, // known up front so fitView + the minimap dont wait on measuring
       height: p.h,
       style: group ? { width: p.w, height: p.h } : undefined,
-      data: { g, chips: v.chips.get(g.id) || [] },
+      data: { g, chips: v.chips.get(g.id) || [], pinned: pinned.has(p.id) },
     }
   })
 }
 
 export function App() {
   const [graph, setGraph] = useState<Graph | null>(null)
+  const [pins, setPins] = useState<Map<number, Pin>>(new Map())
   const [nodes, setNodes] = useState<Node<SporeData>[]>([])
   const [stale, setStale] = useState(false)
   const [infra, setInfra] = useState(false)
@@ -87,7 +122,9 @@ export function App() {
   const load = useCallback(async () => {
     setErr('')
     try {
-      setGraph(await getGraph(stale))
+      const [g, p] = await Promise.all([getGraph(stale), getPins()])
+      setPins(p)
+      setGraph(g)
     } catch (e) {
       setErr(String(e))
     }
@@ -154,18 +191,49 @@ export function App() {
 
   const view = useMemo(() => (graph ? buildView(graph, infra, hide) : null), [graph, infra, hide])
 
+  // keep the selection ring through a re-layout (pinning something re-lays the map)
+  const selId = useRef<number | null>(null)
+  selId.current = sel ? sel.id : null
+
   useEffect(() => {
     if (!view) return
     let gone = false
-    place(view)
+    place(view, pins)
       .then((ns) => {
-        if (!gone) setNodes(ns)
+        if (!gone) setNodes(ns.map((n) => (selId.current !== null && n.id === String(selId.current) ? { ...n, selected: true } : n)))
       })
       .catch((e) => setErr('layout failed: ' + String(e)))
     return () => {
       gone = true // a newer layout is on its way, drop this one
     }
-  }, [view])
+  }, [view, pins])
+
+  // dropped somewhere = pinned there. a multi-select drag pins all of them
+  const pinDrop = (moved: Node<SporeData>[]) => {
+    if (!view) return
+    const next = new Map(pins)
+    for (const n of moved) {
+      const id = Number(n.id)
+      if (id < 0) continue
+      const p = { x: Math.round(n.position.x), y: Math.round(n.position.y), in: boxRef(id, view) }
+      next.set(id, p)
+      setPin(id, p).catch((e) => setErr(String(e)))
+    }
+    setPins(next)
+  }
+
+  const unpin = (id: number | null) => {
+    dropPin(id)
+      .then(() => {
+        if (id === null) setPins(new Map())
+        else {
+          const next = new Map(pins)
+          next.delete(id)
+          setPins(next)
+        }
+      })
+      .catch((e) => setErr(String(e)))
+  }
 
   const ix = useMemo(() => (graph ? index(graph) : null), [graph])
   // the spotlight: everything on the selected thing's traffic paths
@@ -269,6 +337,8 @@ export function App() {
         stale={stale}
         setStale={setStale}
         onReload={load}
+        pinCount={pins.size}
+        onUnpinAll={() => unpin(null)}
         counts={(graph ? graph.nodes.length : 0) + ' things, ' + edges.length + ' links shown'}
       />
       {err && <div className="err">{err}</div>}
@@ -287,6 +357,7 @@ export function App() {
           onNodeMouseEnter={(e, n) => peek(e, n as Node<SporeData>)}
           onNodeMouseLeave={unpeek}
           onNodeDragStart={unpeek}
+          onNodeDragStop={(_, __, moved) => pinDrop(moved as Node<SporeData>[])}
           onMoveStart={unpeek}
           onEdgeMouseEnter={(_, e) => setHover(e.id)}
           onEdgeMouseLeave={() => setHover('')}
@@ -300,7 +371,8 @@ export function App() {
             nodeColor={(n) => KIND_COLOR[(n as Node<SporeData>).data.g.kind] || INK.line} />
         </ReactFlow>
         {sel && ix && view && (
-          <Inspector g={sel} ix={ix} view={view} lit={lit} canJump={(id) => drawn.has(id)} onJump={jump} onClose={clear} />
+          <Inspector g={sel} ix={ix} view={view} lit={lit} canJump={(id) => drawn.has(id)} onJump={jump} onClose={clear}
+            pinned={pins.has(sel.id)} onUnpin={() => unpin(sel.id)} />
         )}
         {hov && ix && <HoverCard g={hov.g} x={hov.x} y={hov.y} ix={ix} />}
       </main>

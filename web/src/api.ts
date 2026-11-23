@@ -51,6 +51,32 @@ export async function scanAll(): Promise<ScanResult[]> {
   return r.json()
 }
 
+// a pinned spot, relative to the box it sits in. "in" says which box, so a pin from
+// a box the thing has since moved out of gets ignored instead of landing somewhere odd
+export type Pin = { x: number; y: number; in: string }
+
+export async function getPins(): Promise<Map<number, Pin>> {
+  const r = await fetch('/api/v1/overrides?field=pos')
+  if (!r.ok) return new Map() // older backend, no pins
+  const rows: { node_id: number; value: Pin }[] = await r.json()
+  return new Map(rows.map((o) => [o.node_id, o.value]))
+}
+
+export async function setPin(id: number, p: Pin): Promise<void> {
+  const r = await fetch('/api/v1/overrides/' + id + '/pos', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ value: p }),
+  })
+  if (!r.ok) throw new Error('saving the pin failed: ' + r.status)
+}
+
+export async function dropPin(id: number | null): Promise<void> {
+  // null = every pin
+  const r = await fetch(id === null ? '/api/v1/overrides?field=pos' : '/api/v1/overrides/' + id + '/pos', { method: 'DELETE' })
+  if (!r.ok) throw new Error('unpinning failed: ' + r.status)
+}
+
 export async function getGraph(stale: boolean): Promise<Graph> {
   const r = await fetch('/api/v1/graph?stale=' + stale)
   if (!r.ok) throw new Error('graph request failed: ' + r.status)

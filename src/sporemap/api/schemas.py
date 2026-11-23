@@ -39,6 +39,16 @@ class GraphOut(BaseModel):
     edges: list[EdgeOut]
 
 
+class OverrideIn(BaseModel):
+    value: dict
+
+
+class OverrideOut(BaseModel):
+    node_id: int
+    field: str
+    value: dict
+
+
 class ScanIn(BaseModel):
     source: str
 
