@@ -51,6 +51,23 @@ export async function scanAll(): Promise<ScanResult[]> {
   return r.json()
 }
 
+export type Overview = {
+  counts: Record<string, number>
+  health: Record<'workloads' | 'containers' | 'tunnels' | 'sources', [number, number]>
+  attention: { level: 'bad' | 'warn' | 'info'; what: string; text: string; node_id: number | null }[]
+  sources: { name: string; status: string; error: string | null; at: string; last_ok: string | null }[]
+  capacity: {
+    id: number; name: string; cpus: number | null; mem: number | null
+    cpus_running: number; mem_running: number; cpus_all: number; mem_all: number; running: number; total: number
+  }[]
+}
+
+export async function getOverview(): Promise<Overview> {
+  const r = await fetch('/api/v1/overview')
+  if (!r.ok) throw new Error('overview request failed: ' + r.status)
+  return r.json()
+}
+
 // a pinned spot, relative to the box it sits in. "in" says which box, so a pin from
 // a box the thing has since moved out of gets ignored instead of landing somewhere odd
 export type Pin = { x: number; y: number; in: string }

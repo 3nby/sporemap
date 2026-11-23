@@ -1,7 +1,15 @@
 from fastapi import APIRouter, HTTPException
 from sqlmodel import Session, col, func, select
 
-from sporemap.api.schemas import EdgeOut, GraphOut, NodeDetail, NodeOut, SeenBy
+from sporemap.api.schemas import (
+    EdgeOut,
+    GraphOut,
+    NodeDetail,
+    NodeOut,
+    OverviewOut,
+    SeenBy,
+)
+from sporemap.core.overview import overview as _overview
 from sporemap.db import get_engine
 from sporemap.db.models import Edge, Node, Observation, Scan
 
@@ -26,6 +34,12 @@ def graph(stale: bool = False, kind: str | None = None):
         edges=[EdgeOut(id=e.id, kind=e.kind, src=e.src_id, dst=e.dst_id, source=e.source,
                        confidence=e.confidence) for e in edges],
     )
+
+
+@r.get("/overview", response_model=OverviewOut)
+def overview():
+    """How the lab is doing: health counts, what needs a look, sources, and host capacity."""
+    return _overview()
 
 
 @r.get("/nodes/{nid}", response_model=NodeDetail)

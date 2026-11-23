@@ -39,6 +39,42 @@ class GraphOut(BaseModel):
     edges: list[EdgeOut]
 
 
+class Attention(BaseModel):
+    level: str  # bad / warn / info
+    what: str  # host, container, tunnel, source, unknown, mac, ip, workload, dns, route, stale
+    text: str
+    node_id: int | None  # where to jump on the map, if anywhere
+
+
+class SourceState(BaseModel):
+    name: str
+    status: str  # ok / failed / running
+    error: str | None
+    at: datetime
+    last_ok: datetime | None
+
+
+class HostLoad(BaseModel):
+    id: int
+    name: str
+    cpus: int | None
+    mem: int | None  # bytes
+    cpus_running: int  # asked for by running CTs/VMs
+    mem_running: int
+    cpus_all: int  # incl stopped ones
+    mem_all: int
+    running: int
+    total: int
+
+
+class OverviewOut(BaseModel):
+    counts: dict[str, int]
+    health: dict[str, list[int]]  # name -> [good, total]
+    attention: list[Attention]
+    sources: list[SourceState]
+    capacity: list[HostLoad]
+
+
 class OverrideIn(BaseModel):
     value: dict
 

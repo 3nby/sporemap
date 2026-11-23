@@ -9,7 +9,8 @@ export function bytes(n: unknown): string {
     v /= 1024
     i++
   }
-  return (v >= 10 || i === 0 ? Math.round(v) : Math.round(v * 10) / 10) + ' ' + u[i]
+  // one decimal under 100, so 15.4 GiB doesnt round down to 15 next to a 16
+  return (v >= 100 || i === 0 ? Math.round(v) : Math.round(v * 10) / 10) + ' ' + u[i]
 }
 
 export function ago(iso: string): string {
@@ -18,7 +19,8 @@ export function ago(iso: string): string {
   if (s < 60) return 'just now'
   if (s < 3600) return Math.round(s / 60) + ' min ago'
   if (s < 86400) return Math.round(s / 3600) + ' h ago'
-  return Math.round(s / 86400) + ' days ago'
+  const d = Math.round(s / 86400)
+  return d + (d === 1 ? ' day ago' : ' days ago')
 }
 
 export function until(iso: string): string {

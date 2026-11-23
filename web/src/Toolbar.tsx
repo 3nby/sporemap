@@ -150,6 +150,7 @@ function Status({ sched, scanning, onScan }: { sched: Sched | null; scanning: bo
 // --- the bar --------------------------------------------------------------------
 
 type Props = {
+  route: 'overview' | 'map'
   nodes: GNode[] // searchable (the drawn ones)
   kinds: string[]
   hide: Set<string>
@@ -173,8 +174,12 @@ export function Toolbar(p: Props) {
   return (
     <header>
       <b className="brand">Sporemap</b>
+      <nav>
+        <a href="#/overview" className={p.route === 'overview' ? 'on' : ''}>Overview</a>
+        <a href="#/map" className={p.route === 'map' ? 'on' : ''}>Map</a>
+      </nav>
       <Search nodes={p.nodes} onPick={p.onPick} />
-      <Kinds kinds={p.kinds} hide={p.hide} onToggle={p.onToggleKind} />
+      {p.kinds.length > 0 ? <Kinds kinds={p.kinds} hide={p.hide} onToggle={p.onToggleKind} /> : <div className="kinds" />}
       <Status sched={p.sched} scanning={p.scanning} onScan={p.onScan} />
       <div className="more">
         <button className="dots" onClick={() => setMenu((m) => !m)} title="view options">{'⋯'}</button>

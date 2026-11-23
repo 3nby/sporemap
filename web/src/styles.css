@@ -157,6 +157,72 @@ main > .react-flow { flex: 1; background: var(--bg); }
 .raw summary { cursor: pointer; }
 .raw pre { background: var(--surface-2); border: 1px solid var(--line); padding: 10px; border-radius: 6px; font-size: 11px; overflow: auto; color: var(--ink); }
 
+/* page tabs */
+header nav { display: flex; gap: 2px; flex-shrink: 0; background: var(--surface-2); border: 1px solid var(--line); border-radius: 8px; padding: 2px; }
+header nav a { font-size: 13px; padding: 3px 10px; border-radius: 6px; color: var(--muted); text-decoration: none; }
+header nav a:hover { color: var(--ink); }
+header nav a.on { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(46, 42, 35, .12); }
+
+/* overview page. status colors (validated on the card surface): good #1F8C6A, warn #C97A1E,
+   bad #9C2F2B, each with a lighter track step of the same hue. always next to an icon + word */
+:root { --good: #1F8C6A; --warn: #C97A1E; --bad: #9C2F2B; --good-t: #D3E8DF; --warn-t: #F3E2CB; --bad-t: #EDD3D1; }
+main.ovmain { overflow: auto; display: block; }
+.ov { max-width: 1180px; margin: 0 auto; padding: 18px 16px 40px; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 14px; }
+.tile, .card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
+.tlabel { font-size: 12px; color: var(--muted); }
+.tvalue { font-size: 30px; font-weight: 600; margin: 2px 0 4px; }
+.tvalue span { font-size: 15px; font-weight: 400; color: var(--muted); }
+.tnote { font-size: 12px; display: flex; align-items: center; gap: 6px; color: var(--muted); }
+.tnote i, .att i, .st i, .allgood i { font-style: normal; display: inline-grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; font-size: 10px; font-weight: 700; color: #fff; background: var(--muted); flex-shrink: 0; }
+.tnote.good, .st.good, .allgood { color: var(--good); }
+.tnote.good i, .st.good i, .allgood i { background: var(--good); }
+.tnote.warn, .att.warn { color: #8A5212; }
+.tnote.warn i, .att.warn i { background: var(--warn); }
+.tnote.bad, .att.bad, .st.bad { color: var(--bad); }
+.tnote.bad i, .att.bad i, .st.bad i { background: var(--bad); }
+.tnote.calm i, .st.calm i { background: #B3A790; }
+
+.ov-cols { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 14px; align-items: start; }
+.ov-side { display: flex; flex-direction: column; gap: 14px; }
+.card h3 { margin: 0 0 10px; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 600; display: flex; align-items: baseline; gap: 10px; }
+.card h3 .muted { text-transform: none; letter-spacing: 0; font-weight: 400; }
+.att { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--surface-2); font-size: 13px; color: var(--ink); }
+.att:last-child { border-bottom: 0; }
+.att.info i { background: #B3A790; }
+.att .atext { flex: 1; min-width: 0; color: var(--ink); }
+.att button, .hostlink { border: 1px solid var(--line); background: var(--surface-2); border-radius: 6px; padding: 2px 8px; font-size: 12px; color: var(--bark); cursor: pointer; white-space: nowrap; }
+.att button:hover, .hostlink:hover { border-color: var(--bark); }
+.hostlink { font-size: 13px; font-weight: 600; text-transform: none; letter-spacing: 0; color: var(--ink); }
+.allgood { display: flex; align-items: center; gap: 8px; font-size: 14px; padding: 6px 0; }
+
+/* meter list: name, bar, figure. fill carries severity, track is a lighter step of the same hue */
+.meter { display: grid; grid-template-columns: 64px 1fr; gap: 4px 10px; align-items: center; padding: 6px 0; }
+.mname { font-size: 13px; }
+.mbar { height: 8px; border-radius: 4px; overflow: hidden; }
+.mbar > div { height: 100%; border-radius: 4px; }
+.mbar.good { background: var(--good-t); } .mbar.good > div { background: var(--good); }
+.mbar.warn { background: var(--warn-t); } .mbar.warn > div { background: var(--warn); }
+.mbar.bad { background: var(--bad-t); } .mbar.bad > div { background: var(--bad); }
+.mfig { grid-column: 2; font-size: 12px; color: var(--muted); }
+.mfig b { font-weight: 600; }
+.mfig b.good { color: var(--good); } .mfig b.warn { color: #8A5212; } .mfig b.bad { color: var(--bad); }
+.mfig .over { margin-left: 6px; font-size: 11px; padding: 0 6px; border-radius: 8px; background: var(--surface-2); border: 1px solid var(--line); }
+
+.srcs { width: 100%; border-collapse: collapse; font-size: 13px; }
+.srcs td { padding: 5px 0; border-bottom: 1px solid var(--surface-2); }
+.srcs tr:last-child td { border-bottom: 0; }
+.srcs .st { width: 72px; display: flex; align-items: center; gap: 6px; font-size: 12px; }
+.srcs .sname { font-weight: 600; }
+.srcs td.muted { text-align: right; font-variant-numeric: tabular-nums; }
+.srcerr { font-size: 12px; color: var(--bad); margin-top: 6px; word-break: break-word; }
+.counts { display: flex; flex-wrap: wrap; gap: 6px 12px; font-size: 13px; }
+.counts i { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 5px; }
+
+@media (max-width: 860px) {
+  .ov-cols { grid-template-columns: 1fr; }
+}
+
 /* narrow windows: chips go dots-only, status drops its words, and the inspector floats over
    the map instead of squeezing it */
 @media (max-width: 1100px) {

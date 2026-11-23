@@ -7,6 +7,7 @@ import { dropPin, getGraph, getPins, getSchedule, scanAll, setPin, type GNode, t
 import { index } from './facts'
 import { HoverCard } from './HoverCard'
 import { Inspector } from './Inspector'
+import { Overview } from './Overview'
 import { H, H_CHIPS, TOP, TOP_CHIPS, TOP_LANE, W, layout, type Box } from './layout'
 import { BoxNode, INK, KIND_COLOR, LaneNode, SporeNode, type SporeData } from './SporeNode'
 import { Toolbar } from './Toolbar'
@@ -17,6 +18,12 @@ const nodeTypes = { spore: SporeNode, box: BoxNode, lane: LaneNode }
 
 // kind chips go in the order traffic flows, internet first
 const ORDER = ['endpoint', 'external', 'app', 'host', 'workload', 'container', 'network', 'storage']
+
+export type Route = 'overview' | 'map'
+
+function readRoute(): Route {
+  return window.location.hash.startsWith('#/map') ? 'map' : 'overview' // the overview is home
+}
 
 // hidden kinds are a per-browser nicety, so storage failing (private window etc) is fine
 function loadHide(): Set<string> {
@@ -321,14 +328,45 @@ export function App() {
 
   const searchable = useMemo(() => (view ? view.nodes.filter((n) => n.id >= 0 && drawn.has(n.id)) : []), [view, drawn])
 
+  // pages live in the hash (#/overview, #/map) bc the server only serves index.html at /
+  const [route, setRoute] = useState(readRoute)
+  useEffect(() => {
+    const h = () => setRoute(readRoute())
+    window.addEventListener('hashchange', h)
+    return () => window.removeEventListener('hashchange', h)
+  }, [])
+  useEffect(() => {
+    if (route !== 'map') setRf(null) // the map unmounts, its instance goes with it
+  }, [route])
+
+  // "show on map" from the overview or search: switch to the map, then fly there once its drawn
+  const [pending, setPending] = useState<number | null>(null)
+  const show = (id: number) => {
+    setPending(id)
+    if (route !== 'map') window.location.hash = '#/map'
+  }
+  useEffect(() => {
+    if (pending === null || route !== 'map' || !rf || !nodes.length) return
+    if (drawn.has(pending)) {
+      jump(pending)
+      setPending(null)
+      return
+    }
+    // hidden by a kind chip? show that kind again and try once the map re-lays
+    const k = ix?.byId.get(pending)?.kind
+    if (k && hide.has(k)) toggleKind(k)
+    else setPending(null)
+  }, [pending, route, rf, nodes, drawn, jump, ix, hide])
+
   return (
     <div className="app">
       <Toolbar
-        nodes={searchable}
-        kinds={kinds}
+        route={route}
+        nodes={route === 'map' ? searchable : (graph ? graph.nodes : [])}
+        kinds={route === 'map' ? kinds : []}
         hide={hide}
         onToggleKind={toggleKind}
-        onPick={jump}
+        onPick={show}
         sched={sched}
         scanning={scanning}
         onScan={scanNow}
@@ -342,6 +380,11 @@ export function App() {
         counts={(graph ? graph.nodes.length : 0) + ' things, ' + edges.length + ' links shown'}
       />
       {err && <div className="err">{err}</div>}
+      {route === 'overview' ? (
+        <main className="ovmain">
+          <Overview tick={graph} onShow={show} />
+        </main>
+      ) : (
       <main>
         <ReactFlow
           nodes={shown}
@@ -376,6 +419,7 @@ export function App() {
         )}
         {hov && ix && <HoverCard g={hov.g} x={hov.x} y={hov.y} ix={ix} />}
       </main>
+      )}
     </div>
   )
 }
